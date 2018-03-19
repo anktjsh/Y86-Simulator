@@ -1,0 +1,27 @@
+.keyword {
+    -fx-fill: purple;
+}
+
+.comment {
+    -fx-fill: cadetblue;
+}
+
+.register {
+    -fx-fill:darkblue;
+}
+
+.hex{
+    -fx-fill:darkgreen;
+}
+
+.label {
+    -fx-fill:darkred;
+}
+
+.directive{
+    -fx-fill:deeppink;
+}
+
+.paragraph-box:has-caret {
+    -fx-background-color: #f2f9fc;
+}
