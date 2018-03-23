@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Scanner;
 import java.util.Set;
 import virtual.machine.core.Pair;
 
@@ -31,6 +32,16 @@ public class Compiler {
             put("subq", (byte) 0x61);
             put("andq", (byte) 0x62);
             put("xorq", (byte) 0x63);
+
+//            put("multq", (byte) 0x64);
+//            put("divq", (byte) 0x65);
+//            put("modq", (byte) 0x66);
+//            put("sarq", (byte) 0x67);
+//            put("slrq", (byte) 0x68);
+//            put("salq", (byte) 0x69);
+//            put("orq", (byte) 0x6A);
+//            //put("notq", (byte) 0x6B);
+//            //put("negq", (byte) 0x6C);
             put("jmp", (byte) 0x70);
             put("jle", (byte) 0x71);
             put("jl", (byte) 0x72);
@@ -83,6 +94,17 @@ public class Compiler {
             put("subq", (byte) 2);
             put("andq", (byte) 2);
             put("xorq", (byte) 2);
+
+            put("multq", (byte) 2);
+            put("divq", (byte) 2);
+            put("modq", (byte) 2);
+            put("sarq", (byte) 2);
+            put("slrq", (byte) 2);
+            put("salq", (byte) 2);
+            put("orq", (byte) 2);
+            put("notq", (byte) 2);
+            put("negq", (byte) 2);
+
             put("jmp", (byte) 9);
             put("jle", (byte) 9);
             put("jl", (byte) 9);
@@ -115,17 +137,16 @@ public class Compiler {
     //catch index out of bounds?
     public synchronized ArrayList<Pair<String, ArrayList<Byte>>> compile(String s) throws CompilerException {
         ArrayList<Pair<String, ArrayList<Byte>>> oper = new ArrayList<>();
-        //ArrayList<Byte> operations = new ArrayList<>();
         long indexPos = 0;
         String[] lines = s.split("\n");
-        HashMap<String, Long> labels = new HashMap<>();
         for (int x = 0; x < lines.length; x++) {
             String val = lines[x].trim();
             if (val.contains("#")) {
                 val = val.substring(0, val.indexOf("#"));
             }
-            lines[x] = val;
+            lines[x] = val.trim();
         }
+        HashMap<String, Long> labels = new HashMap<>();
         long totalBytes = 0;
         int line = 0;
         try {
@@ -137,13 +158,16 @@ public class Compiler {
                     if (byteMap.containsKey(token)) {
                         totalBytes += byteMap.get(token);
                     } else if (token.equals(".align")) {
-                        //extra argument here
-                        totalBytes += Long.BYTES - (totalBytes % 8);
+                        if (spl.length == 1) {
+                            throw new CompilerException(line + 1, "Missing argument for .align directive");
+                        }
+                        long al = Long.parseLong(spl[1]);
+                        totalBytes += al - (totalBytes % al);
                     } else if (token.equals(".quad")) {
                         totalBytes += Long.BYTES;
                     } else if (token.startsWith(".pos")) {
-                        if (spl.length < 2) {
-                            throw new CompilerException(line + 1, "Missing operation for .pos directive");
+                        if (spl.length == 1) {
+                            throw new CompilerException(line + 1, "Missing argument for .pos directive");
                         }
                         int base = 10;
                         if (spl[1].startsWith("0x")) {
@@ -167,26 +191,37 @@ public class Compiler {
                 if (!val.isEmpty()) {
                     if (val.endsWith(":")) {
                     } else if (val.startsWith(".")) {
+                        String[] spl = val.split("\\s+");
                         if (val.startsWith(".quad")) {
-                            //argument not there
-                            String num = val.split("\\s+")[1];
+                            if (spl.length == 1) {
+                                throw new CompilerException(line + 1, "Missing argument for .quad directive");
+                            }
+                            String num = spl[1];
                             int base = 10;
                             if (num.startsWith("0x")) {
                                 num = num.substring(2);
                                 base = 16;
                             }
-                            int diff = 16 - num.length();
-                            for (int n = 0; n < diff; n++) {
-                                num += "0";
-                            }
-                            //this is incorrect for base 10
-                            for (int n = 14; n >= 0; n -= 2) {
-                                operations.add((byte) Integer.parseInt(num.substring(n, n + 2), base));
+                            if (base == 16) {
+                                int diff = 16 - num.length();
+                                for (int n = 0; n < diff; n++) {
+                                    num += "0";
+                                }
+                                for (int n = 14; n >= 0; n -= 2) {
+                                    operations.add((byte) Integer.parseInt(num.substring(n, n + 2), base));
+                                }
+                            } else {
+                                ByteBuffer buff = ByteBuffer.allocate(Long.BYTES);
+                                buff.putLong(Long.parseLong(num));
+                                byte[] arr = (buff.array());
+                                reverse(arr);
+                                for (byte b : arr) {
+                                    operations.add(b);
+                                }
                             }
                             indexPos += Long.BYTES;
                         } else if (val.startsWith(".pos")) {
-                            //missing argument
-                            String num = val.split("\\s+")[1];
+                            String num = spl[1];
                             int base = 10;
                             if (num.startsWith("0x")) {
                                 num = num.substring(2);
@@ -199,8 +234,7 @@ public class Compiler {
                             }
                             indexPos += diff;
                         } else if (val.startsWith(".align")) {
-                            //missing argument
-                            long al = Long.parseLong(val.split("\\s+")[1]);
+                            long al = Long.parseLong(spl[1]);
                             long diff = al - (indexPos % al);
                             indexPos += diff;
                             for (long a = 0; a < diff; a++) {
@@ -209,9 +243,9 @@ public class Compiler {
                         }
                     } else {
                         ArrayList<Byte> arr = getArray(val, labels, line + 1);
-                        for (byte b : arr) {
+                        arr.forEach((b) -> {
                             operations.add(b);
-                        }
+                        });
                         indexPos += arr.size();
                     }
                 }
@@ -226,16 +260,24 @@ public class Compiler {
     }
 
     private ArrayList<Byte> getArray(String s, HashMap<String, Long> labels, int line) throws CompilerException {
+        String save = s;
         s = s.replaceAll(", ", ",");
         ArrayList<Byte> byt = new ArrayList<>();
         if (s.startsWith("irmovq")) {
-            //no argument, empty string or indexoutofbounds on idnexOF
-            String val = s.substring(s.indexOf(" ") + 1, s.indexOf(",")).trim();
+            s = s.replaceAll(",", " ");
+            Scanner read = new Scanner(s);
+            read.next();
+            if (!read.hasNext()) {
+                throw new CompilerException(line, "insufficient operands");
+            }
+            String val = read.next();
             long l;
             if (labels.containsKey(val)) {
                 l = labels.get(val);
             } else {
-                //double check dollar sign is there
+                if (!val.startsWith("$")) {
+                    throw new CompilerException(line, "invalid operands");
+                }
                 val = val.substring(1);
                 int base = 10;
                 if (val.startsWith("0x")) {
@@ -250,25 +292,53 @@ public class Compiler {
             byte[] array = buffer.array();
             reverse(array);
             byt.add(mappings.get("irmovq"));
-            String register = s.substring(s.indexOf(",") + 1).trim();
+            if (!read.hasNext()) {
+                throw new CompilerException(line, "insufficient operands");
+            }
+            String register = read.next();
             byt.add((byte) (mappings.get(register) | (0xF << 4)));
             for (byte b : array) {
                 byt.add(b);
             }
         } else if (s.startsWith("rmmovq")) {
             byt.add(mappings.get("rmmovq"));
-            s = s.substring(7);
-            byte sourceRegister = mappings.get(s.substring(0, 4));
-            s = s.substring(5).trim();
-            String offset = s.substring(0, s.indexOf("("));
+            if (!s.startsWith("rmmovq ")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            s = s.substring(7).trim();
+            if (!s.contains(",")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            String reg = s.substring(0, s.indexOf(",")).trim();
+            if (!reg.startsWith("%")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            if (!mappings.containsKey(reg)) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            byte sourceRegister = mappings.get(reg);
+            s = s.substring(s.indexOf(",") + 1).trim();
+            if (!s.contains("(")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            if (!s.contains(")")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            String offset = s.substring(0, s.indexOf("(")).trim();
             String register = s.substring(s.indexOf("(") + 1, s.indexOf(")"));
+            if (!register.startsWith("%")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            if (!mappings.containsKey(register)) {
+                throw new CompilerException(line, "invalid operands");
+            }
             byt.add((byte) (sourceRegister << 4 | mappings.get(register)));
             int base = 10;
             if (offset.startsWith("0x")) {
                 base = 16;
                 offset = offset.substring(2);
             }
-            long l = Long.parseLong(offset, base);
+            long l = offset.isEmpty() ? 0 : Long.parseLong(offset, base);
             ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
             buffer.putLong(0, l);
             buffer.flip();
@@ -279,17 +349,38 @@ public class Compiler {
             }
         } else if (s.startsWith("mrmovq")) {
             byt.add(mappings.get("mrmovq"));
-            s = s.substring(7);
-            String offset = s.substring(0, s.indexOf("("));
+            if (!s.startsWith("mrmovq ")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            s = s.substring(7).trim();
+            if (!s.contains("(")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            if (!s.contains(")")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            String offset = s.substring(0, s.indexOf("(")).trim();
             String sourceReg = s.substring(s.indexOf("(") + 1, s.indexOf(")"));
+            if (!sourceReg.startsWith("%")) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            if (!mappings.containsKey(sourceReg)) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            if (!s.contains(",")) {
+                throw new CompilerException(line, "invalid operands");
+            }
             s = s.substring(s.indexOf(",") + 1).trim();
+            if (!mappings.containsKey(s)) {
+                throw new CompilerException(line, "invalid operands");
+            }
             byt.add((byte) (mappings.get(sourceReg) << 4 | mappings.get(s)));
             int base = 10;
             if (offset.startsWith("0x")) {
                 base = 16;
                 offset = offset.substring(2);
             }
-            long l = Long.parseLong(offset, base);
+            long l = offset.isEmpty() ? 0 : Long.parseLong(offset, base);
             ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
             buffer.putLong(0, l);
             buffer.flip();
@@ -299,18 +390,22 @@ public class Compiler {
                 byt.add(b);
             }
         } else if (s.startsWith("popq") || s.startsWith("pushq")) {
-            String[] split = s.split("\\s+");
-            String register = split[1];
-            byt.add(mappings.get(split[0]));
+            Scanner read = new Scanner(s);
+            if (!read.hasNext()) {
+                throw new CompilerException(line, "insufficient operands");
+            }
+            byt.add(mappings.get(read.next()));
+            if (!read.hasNext()) {
+                throw new CompilerException(line, "insufficient operands");
+            }
+            String register = read.next();
             byt.add((byte) (mappings.get(register) << 4 | 0xF));
         } else {
-            String[] spl = s.split(",");
+            s = s.replaceAll(",", " ");
+            Scanner read = new Scanner(s);
             ArrayList<String> args = new ArrayList<>();
-            for (String sa : spl) {
-                String[] sp = sa.trim().split("\\s+");
-                for (String sap : sp) {
-                    args.add(sap.trim());
-                }
+            while (read.hasNext()) {
+                args.add(read.next());
             }
             boolean lessThan = false;
             for (String val : args) {
@@ -337,11 +432,15 @@ public class Compiler {
                         byt.add(b);
                     }
                 } else {
-                    throw new CompilerException(line + 1, "Unrecognized tokens on line : " + s);
+                    throw new CompilerException(line, "Unrecognized tokens on line : " + save);
                 }
             }
         }
-        if (byt.size() != byteMap.get(s.split("\\s+")[0])) {
+        Scanner finalCheck = new Scanner(save);
+        if (!finalCheck.hasNext()) {
+            throw new CompilerException(line, "insufficient operands");
+        }
+        if (byt.size() != byteMap.get(finalCheck.next())) {
             throw new CompilerException(line, "missing arguments");
         }
         return byt;
@@ -349,8 +448,8 @@ public class Compiler {
     }
 
     public static void reverse(byte[] b) {
-        for (int x = 0; x < b.length / 2; x++) {
-            int end = b.length - (x + 1);
+        for (int x = 0; x < b.length >> 1; x++) {
+            int end = b.length - x - 1;
             byte temp = b[x];
             b[x] = b[end];
             b[end] = temp;

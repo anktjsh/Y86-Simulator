@@ -6,11 +6,18 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import javafx.animation.FadeTransition;
+import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableSet;
 import javafx.event.ActionEvent;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
@@ -20,7 +27,11 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -36,6 +47,8 @@ import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -65,10 +78,10 @@ import virtual.machine.core.Strings;
  */
 public class Editor extends BorderPane {
 
-    //bottom machine code
     private final String DEFAULT_STRING = "init:\n\tirmovq  $0x100, %rsp\n\n\tcall Main\n\thalt\n\n"
             + "Main:\n\n\tret\n\n\n\t.pos 0x100\nStack:\n\n\n\n\n";
     private final TabPane pane;
+    private final BorderPane center;
     private final VirtualizedScrollPane virtual;
     private final BorderPane top, left, right, rightTop;
     private final ToolBar icons;
@@ -76,6 +89,9 @@ public class Editor extends BorderPane {
     private final TableView<Register> registers;
     private final Environment environment;
     private final CodeArea object;
+    private final IntegerProperty counterLine = new SimpleIntegerProperty(0);
+    private final BooleanProperty runnable = new SimpleBooleanProperty(false);
+    private final ObservableSet<Integer> breakpoints = FXCollections.observableSet(new HashSet<>());
     
     public Editor(Environment environ) {
         environment = environ;
@@ -96,12 +112,17 @@ public class Editor extends BorderPane {
                 new MaterialDesignIconView(MaterialDesignIcon.CODE_ARRAY),
                 new MaterialDesignIconView(MaterialDesignIcon.PLAY),
                 new MaterialDesignIconView(MaterialDesignIcon.FAST_FORWARD),
-                new MaterialDesignIconView(MaterialDesignIcon.REPLAY));
-        for (MaterialDesignIconView mid : ico) {
+                new MaterialDesignIconView(MaterialDesignIcon.REPLAY),
+                new MaterialDesignIconView(MaterialDesignIcon.STOP));
+        ico.stream().map((mid) -> {
             mid.setSize("2em");
+            return mid;
+        }).map((mid) -> {
             mid.setStyle("-fx-fill:white;");
+            return mid;
+        }).forEachOrdered((mid) -> {
             icons.getItems().add(new Button("", mid));
-        }
+        });
         icons.getItems().add(2, new Separator(Orientation.VERTICAL));
         icons.getItems().add(5, new Separator(Orientation.VERTICAL));
         icons.getItems().add(8, new Separator(Orientation.VERTICAL));
@@ -134,8 +155,13 @@ public class Editor extends BorderPane {
         ((Button) icons.getItems().get(11)).setOnAction((e) -> {
             next();
         });
+        ((Button) icons.getItems().get(10)).disableProperty().bind(runnable.not());
+        ((Button) icons.getItems().get(11)).disableProperty().bind(runnable.not());
         ((Button) icons.getItems().get(13)).setOnAction((e) -> {
             reset();
+        });
+        ((Button) icons.getItems().get(14)).setOnAction((e) -> {
+            stop();
         });
         Tooltip.install(icons.getItems().get(13), new Tooltip("Reset Environment"));
         Tooltip.install(icons.getItems().get(11), new Tooltip("Next Instruction"));
@@ -150,11 +176,15 @@ public class Editor extends BorderPane {
         memory = new TableView<>();
         memory.setEditable(true);
         registers = new TableView<>();
-        setCenter(pane);
+        setCenter(center = new BorderPane());
+        center.setCenter(pane);
         object = new CodeArea();
         object.setEditable(false);
         virtual = new VirtualizedScrollPane(object);
-        object.setMinHeight(450);
+        CursorFactory cursor = new CursorFactory(counterLine);
+        object.setParagraphGraphicFactory((line) -> {
+            return cursor.apply(line);
+        });
         BorderPane.setMargin(pane, new Insets(5));
         BorderPane.setMargin(object, new Insets(5));
         readScripts();
@@ -315,9 +345,80 @@ public class Editor extends BorderPane {
         });
         environment.counter().addListener((ob, older, newer) -> {
             pc.setText("Program Counter : " + Strings.getHex(environment.programCounter(), 4));
+            alignCounter(newer.intValue());
+        });
+        environment.setBreakCall((param) -> {
+            Platform.runLater(() -> {
+                Alert al = new Alert(AlertType.INFORMATION);
+                al.initOwner(getScene().getWindow());
+                al.initModality(Modality.APPLICATION_MODAL);
+                al.setHeaderText("A breakpoint has been encountered");
+                ButtonType next, run, halt;
+                next = new ButtonType("Next Instruction", ButtonData.OK_DONE);
+                run = new ButtonType("Continue", ButtonData.YES);
+                halt = new ButtonType("Halt Machine", ButtonData.CANCEL_CLOSE);
+                al.getButtonTypes().setAll(next, run, halt);
+                al.showAndWait().ifPresent((eb) -> {
+                    if (eb.equals(next)) {
+                        environment.override();
+                        next();
+                    } else if (eb.equals(run)) {
+                        environment.override();
+                        run();
+                    } else {
+                        System.out.println(environment.getStatus());
+                    }
+                });
+            });
+            return null;
+        });
+        counterLine.addListener((ob, older, newer) -> {
+            object.setParagraphGraphicFactory((line) -> {
+                return cursor.apply(line);
+            });
         });
         right.setTop(rightTop);
         right.setCenter(registers);
+        setOnDragOver((event) -> {
+            Dragboard db = event.getDragboard();
+            if (db.hasFiles()) {
+                event.acceptTransferModes(TransferMode.COPY);
+            } else {
+                event.consume();
+            }
+        });
+        setOnDragDropped((event) -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasFiles()) {
+                success = true;
+                String filePath = null;
+                db.getFiles().stream().filter((file) -> (file.getName().endsWith(".s"))).forEachOrdered((file) -> {
+                    loadFile(file);
+                });
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+        
+    }
+    
+    private void alignCounter(int newValue) {
+        if (center.getBottom() != null) {
+            int num = 0;
+            boolean found = false;
+            for (int x = 0; x < object.getParagraphs().size(); x++) {
+                if (object.getParagraphs().get(x).getText().startsWith(Strings.getHex(newValue, 4))) {
+                    found = true;
+                    num = x;
+                } else {
+                    if (found) {
+                        break;
+                    }
+                }
+            }
+            counterLine.set(num);
+        }
     }
     
     private void readScripts() {
@@ -338,12 +439,9 @@ public class Editor extends BorderPane {
     public void saveScripts() {
         File config = new File("assembly/config.txt");
         ArrayList<String> save = new ArrayList<>();
-        for (Tab b : pane.getTabs()) {
-            if (b instanceof ScriptTab) {
-                ScriptTab st = (ScriptTab) b;
-                save.add(st.getScript().getFile().getAbsolutePath());
-            }
-        }
+        pane.getTabs().stream().filter((b) -> (b instanceof ScriptTab)).map((b) -> (ScriptTab) b).forEachOrdered((st) -> {
+            save.add(st.getScript().getFile().getAbsolutePath());
+        });
         try {
             Files.write(config.toPath(), save);
         } catch (IOException ex) {
@@ -402,26 +500,27 @@ public class Editor extends BorderPane {
     }
     
     public void saveAll() {
-        for (Tab b : pane.getTabs()) {
-            if (b instanceof ScriptTab) {
-                ScriptTab sc = (ScriptTab) b;
-                sc.save();
-            }
-        }
+        pane.getTabs().stream().filter((b) -> (b instanceof ScriptTab)).map((b) -> (ScriptTab) b).forEachOrdered((sc) -> {
+            sc.save();
+        });
     }
     
     public void next() {
-        environment.nextInstruction((param) -> {
-            refresh();
-            return null;
-        });
+        if (runnable.get()) {
+            environment.nextInstruction((param) -> {
+                refresh();
+                return null;
+            }, breakpoints);
+        }
     }
     
     public void run() {
-        environment.run((param) -> {
-            refresh();
-            return null;
-        });
+        if (runnable.get()) {
+            environment.run((param) -> {
+                refresh();
+                return null;
+            }, breakpoints);
+        }
     }
     
     private void refresh() {
@@ -429,16 +528,32 @@ public class Editor extends BorderPane {
         registers.refresh();
     }
     
+    public void stop() {
+        environment.setStatus(1);
+        runnable.set(false);
+    }
+    
     public void compile() {
         save();
+        reset();
         getSelectedTab().ifPresent((ef) -> {
             try {
                 ArrayList<Pair<String, ArrayList<Byte>>> interpret = Compiler.getInstance().compile(ef.getScript().getCurrentCode());
                 int loc = 0;
+                ObservableSet<Integer> breakp = FXCollections.observableSet();
+                ObservableSet<Integer> actualBreakpoints = FXCollections.observableSet(new HashSet<>());
+                getSelectedTab().ifPresent((efa) -> {
+                    breakp.addAll(efa.getBreakpoints());
+                });
+                int line = 0;
+                object.replaceText("");
                 for (Pair<String, ArrayList<Byte>> p : interpret) {
                     object.appendText(Strings.getHex(loc, 4) + "\t");
                     String value = "";
                     boolean notAllZeros = false;
+                    if (breakp.contains(line)) {
+                        actualBreakpoints.add(loc);
+                    }
                     for (Byte b : p.getValue()) {
                         value += Strings.getHexMinusPrefix(b & 0xFF, 2);
                         environment.getMemory().putByte(loc, b);
@@ -452,13 +567,22 @@ public class Editor extends BorderPane {
                             value += " ";
                         }
                     } else {
-                        value = "                   ";
+                        value = "                    ";
                     }
+                    breakpoints.clear();
+                    breakpoints.addAll(actualBreakpoints);
                     object.appendText(value);
-                    object.appendText("\t|\t" + p.getKey() + "\n");
+                    object.appendText("\t|\t");
+                    if (!p.getKey().endsWith(":")) {
+                        object.appendText("\t");
+                    }
+                    object.appendText(p.getKey() + "\n");
+                    line++;
                 }
-                setBottom(virtual);
-                
+                virtual.setMinHeight(getScene().getHeight() / 2);
+                center.setBottom(virtual);
+                alignCounter(0);
+                runnable.set(true);
                 memory.refresh();
                 environment.reset();
                 fadingNotification(pane, "Compilation Successful");
@@ -473,9 +597,10 @@ public class Editor extends BorderPane {
         environment.getMemory().reset();
         refresh();
         environment.reset();
-        if (getBottom() != null) {
-            setBottom(null);
+        if (center.getBottom() != null) {
+            center.setBottom(null);
         }
+        runnable.set(false);
     }
     
     public void openFile() {
@@ -485,19 +610,23 @@ public class Editor extends BorderPane {
         fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly File", "*.s"));
         File open = fc.showOpenDialog(getScene().getWindow());
         if (open != null) {
-            Script sca = new Script(open, "");
-            boolean go = true;
-            for (Tab b : pane.getTabs()) {
-                if (b instanceof ScriptTab) {
-                    ScriptTab sc = (ScriptTab) b;
-                    if (sc.getScript().equals(sca)) {
-                        go = false;
-                    }
+            loadFile(open);
+        }
+    }
+    
+    private void loadFile(File open) {
+        Script sca = new Script(open, "");
+        boolean go = true;
+        for (Tab b : pane.getTabs()) {
+            if (b instanceof ScriptTab) {
+                ScriptTab sc = (ScriptTab) b;
+                if (sc.getScript().equals(sca)) {
+                    go = false;
                 }
             }
-            if (go) {
-                pane.getTabs().add(new ScriptTab(sca));
-            }
+        }
+        if (go) {
+            pane.getTabs().add(new ScriptTab(sca));
         }
     }
     
@@ -563,7 +692,8 @@ public class Editor extends BorderPane {
         bar.getMenus().get(2).getItems().addAll(new MenuItem("Compile"),
                 new MenuItem("Next Instruction"),
                 new MenuItem("Run"),
-                new MenuItem("Reset"));
+                new MenuItem("Reset"),
+                new MenuItem("Stop"));
         bar.getMenus().get(2).getItems().get(0).setOnAction((e) -> {
             compile();
         });
@@ -575,6 +705,9 @@ public class Editor extends BorderPane {
         });
         bar.getMenus().get(2).getItems().get(3).setOnAction((e) -> {
             reset();
+        });
+        bar.getMenus().get(2).getItems().get(4).setOnAction((E) -> {
+            stop();
         });
         return bar;
     }

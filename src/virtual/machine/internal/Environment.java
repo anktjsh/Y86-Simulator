@@ -1,6 +1,6 @@
-
 package virtual.machine.internal;
 
+import java.util.Set;
 import virtual.machine.execution.Interpreter;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
@@ -17,9 +17,12 @@ public class Environment {
     private final IntegerProperty counter;
     private final IntegerProperty status;
     private final BooleanProperty sign, overflow, zero;
+    private boolean overrideBreakpoint = false;
 
     private final Registers register;
     private final Memory memory;
+
+    private Callback<Void, Void> breakCall;
 
     public Environment() {
         register = new Registers();
@@ -29,6 +32,15 @@ public class Environment {
         sign = new SimpleBooleanProperty(false);
         overflow = new SimpleBooleanProperty(false);
         zero = new SimpleBooleanProperty(false);
+    }
+
+    public void setBreakCall(Callback<Void, Void> v) {
+        breakCall = v;
+    }
+
+    public void override() {
+        overrideBreakpoint = true;
+        setStatus(0);
     }
 
     public int programCounter() {
@@ -76,9 +88,9 @@ public class Environment {
         return memory;
     }
 
-    public void run(Callback<Void, Void> call) {
+    public void run(Callback<Void, Void> call, Set<Integer> breakpoints) {
         while (isRunning()) {
-            nextInstruction(call);
+            nextInstruction(call, breakpoints);
         }
     }
 
@@ -87,20 +99,37 @@ public class Environment {
         status.set(0);
     }
 
-    public void nextInstruction(Callback<Void, Void> call) {
+    public void nextInstruction(Callback<Void, Void> call, Set<Integer> breakpoints) {
         Interpreter ip = Interpreter.getInstance(this, memory);
         if (isRunning()) {
-            if (hasJumped()) {
-                jumped = false;
-                counter.set((int) getJumpLocation());
+            if (!breakpoint(counter.get(), breakpoints)) {
+                byte a = memory.getByte(counter.get());
+                counter.set(counter.get() + 1);
+                int end = ip.interpret(a, counter.get());
+                if (hasJumped()) {
+                    jumped = false;
+                    counter.set((int) getJumpLocation());
+                } else {
+                    counter.set(counter.get() + end);
+                }
             }
-            byte a = memory.getByte(counter.get());
-            counter.set(counter.get() + 1);
-            counter.set(counter.get() + ip.interpret(a, counter.get()));
         } else {
             status.set(1);
         }
         call.call(null);
+    }
+
+    private boolean breakpoint(int loc, Set<Integer> breakpoints) {
+        if (breakpoints.contains(loc)) {
+            if (overrideBreakpoint) {
+                overrideBreakpoint = false;
+            } else {
+                setStatus(1);
+                breakCall.call(null);
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean jumped = false;

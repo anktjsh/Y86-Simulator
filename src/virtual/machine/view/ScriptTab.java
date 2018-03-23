@@ -1,10 +1,10 @@
-
 package virtual.machine.view;
 
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.regex.Matcher;
@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableSet;
 import javafx.collections.SetChangeListener;
 import javafx.event.Event;
@@ -32,6 +33,7 @@ import javafx.stage.Modality;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
+import org.fxmisc.richtext.model.Paragraph;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import virtual.machine.core.Pair;
@@ -92,6 +94,10 @@ public class ScriptTab extends Tab {
             + "|(?<CONSTANT>" + CONSTANT_PATTERN + ")"
     );
 
+    public ObservableSet<Integer> getBreakpoints() {
+        return breakpoints;
+    }
+
     private int getRow(int caret) {
         String spl[] = area.getText().split("\n");
         int count = 0;
@@ -111,11 +117,18 @@ public class ScriptTab extends Tab {
         script = scr;
         rowPosition = new SimpleIntegerProperty();
         area = new CodeArea();
+        area.getParagraphs().addListener((ListChangeListener.Change<? extends Paragraph<Collection<String>, String, Collection<String>>> c) -> {
+            c.next();
+            breakpoints.stream().filter((n) -> (c.getList().size() <= n || c.getList().get(n).getText().isEmpty())).forEachOrdered((n) -> {
+                breakpoints.remove(n);
+            });
+        });
         area.caretPositionProperty().addListener((ob, older, newer) -> {
             rowPosition.set(getRow(area.getCaretPosition()));
         });
         breakpoints.addListener((SetChangeListener.Change<? extends Integer> c) -> {
             placeFactory();
+            script.saveBreakpoints(breakpoints);
         });
         area.setStyle("-fx-font-size:15;-fx-font-weight:bold;");
         setOnCloseRequest((e) -> {
@@ -149,23 +162,21 @@ public class ScriptTab extends Tab {
         });
         getContextMenu().getItems().get(1).setOnAction((e) -> {
             TabPane pane = getTabPane();
-            for (Tab b : pane.getTabs()) {
+            pane.getTabs().stream().map((b) -> {
                 Event.fireEvent(b, new Event(Tab.TAB_CLOSE_REQUEST_EVENT));
-                if (getTabPane() != null) {
-                    getTabPane().getTabs().remove(b);
-                }
-            }
+                return b;
+            }).filter((b) -> (getTabPane() != null)).forEachOrdered((b) -> {
+                getTabPane().getTabs().remove(b);
+            });
         });
         getContextMenu().getItems().get(2).setOnAction((e) -> {
             TabPane pane = getTabPane();
-            for (Tab b : pane.getTabs()) {
-                if (!b.equals(this)) {
-                    Event.fireEvent(b, new Event(Tab.TAB_CLOSE_REQUEST_EVENT));
-                    if (getTabPane() != null) {
-                        getTabPane().getTabs().remove(b);
-                    }
-                }
-            }
+            pane.getTabs().stream().filter((b) -> (!b.equals(this))).map((b) -> {
+                Event.fireEvent(b, new Event(Tab.TAB_CLOSE_REQUEST_EVENT));
+                return b;
+            }).filter((b) -> (getTabPane() != null)).forEachOrdered((b) -> {
+                getTabPane().getTabs().remove(b);
+            });
         });
         getContextMenu().getItems().get(3).setOnAction((e) -> {
             ClipboardContent cc = new ClipboardContent();
@@ -234,10 +245,7 @@ public class ScriptTab extends Tab {
             selectAll();
         });
         area.getContextMenu().getItems().get(6).setOnAction((e) -> {
-            String[] spl = area.getText().split("\n");
-            if (rowPosition.get() < spl.length && !spl[rowPosition.get()].trim().isEmpty()) {
-                breakpoints.add(rowPosition.get());
-            }
+            addBreakpoint();
         });
         area.getContextMenu().getItems().get(7).setOnAction((e) -> {
             breakpoints.remove(rowPosition.get());
@@ -252,12 +260,23 @@ public class ScriptTab extends Tab {
                 }
             }
         });
+        breakpoints.addAll(script.getBreakpoints());
+    }
 
+    private void addBreakpoint() {
+        String[] spl = area.getText().split("\n");
+        if (rowPosition.get() < spl.length && !spl[rowPosition.get()].trim().isEmpty()) {
+            Scanner sc = new Scanner(spl[rowPosition.get()]);
+            String word = sc.next();
+            if (!word.endsWith(":") && !word.startsWith(".")) {
+                breakpoints.add(rowPosition.get());
+            }
+        }
     }
 
     public final void concurrent(String s) {
         ConcurrentCompiler.compile(s, (Pair<Integer, String> param) -> {
-            if (param!=null) {
+            if (param != null) {
                 errorLines.setKey(param.getKey());
                 errorLines.setValue(param.getValue());
             } else {

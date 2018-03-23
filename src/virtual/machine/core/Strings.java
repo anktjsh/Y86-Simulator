@@ -15,7 +15,7 @@ public class Strings {
     public static String getHex(int a) {
         return getHexBuild().append(Integer.toHexString(a).toUpperCase()).toString();
     }
-    
+
     public static String getHexMinusPrefix(int a, int l) {
         String valA = Integer.toHexString(a).toUpperCase();
         int offset = 0;
@@ -59,7 +59,7 @@ public class Strings {
         newBuild.append(valA);
         return newBuild.toString();
     }
-    
+
     public static String getDecimal(long a, int l) {
         String valA = Long.toString(a).toUpperCase();
         int offset = 0;

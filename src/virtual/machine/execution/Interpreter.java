@@ -108,8 +108,8 @@ public class Interpreter {
                     buff.put(memory.getByte((int) temp));
                 }
                 buff.flip();
-                long r = environ.getRegister().getValueFromRegister(regs & 0xF) + reverse(buff).getLong();
-                getFromMemory(regs >>> 4, (int) r);
+                long r = environ.getRegister().getValueFromRegister(regs >>> 4) + reverse(buff).getLong();
+                getFromMemory(regs & 0xF, (int) r);
                 result = 9;
                 break;
             case 0x60:
@@ -192,7 +192,7 @@ public class Interpreter {
                 popFromStack(memory.getByte(programCount) >>> 4);
                 result = 1;
                 break;
-            default :
+            default:
                 environ.setStatus(2);
                 break;
         }
@@ -265,17 +265,46 @@ public class Interpreter {
         long result;
         switch (op) {
             case 0x60:
-                result = a + b;
+                result = b + a;
                 break;
             case 0x61:
                 result = b - a;
                 break;
             case 0x62:
-                result = a & b;
+                result = b & a;
                 break;
+            case 0x63:
+                result = b ^ a;
+                break;
+//            case 0x64:
+//                result = b * a;
+//                break;
+//            case 0x65:
+//                result = b / a;
+//                break;
+//            case 0x66:
+//                result = b % a;
+//                break;
+//            case 0x67:
+//                result = b >> a;
+//                break;
+//            case 0x68:
+//                result = b >>> a;
+//                break;
+//            case 0x69:
+//                result = b << a;
+//                break;
+//            case 0x6A:
+//                result = b | a;
+//                break;
+////            case 0x6B:
+////                result = a + b;
+////                break;
+////            case 0x6C:
+////                result = a + b;
+////                break;
             default:
-                result = a ^ b;
-                break;
+                result = 0;
         }
         environ.getRegister().setValueInRegister(reg2, result);
         if (result == 0) {

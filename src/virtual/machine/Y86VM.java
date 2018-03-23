@@ -94,13 +94,15 @@ public class Y86VM extends Application {
         stage.setFullScreen(true);
         stage.show();
         stage.setOnCloseRequest((e) -> {
-            TabPane tabs = (TabPane) ((BorderPane) stage.getScene().getRoot()).getCenter();
+            Editor ed = (Editor) stage.getScene().getRoot();
+            TabPane tabs = (TabPane) ((BorderPane) ed.getCenter()).getCenter();
             boolean option = false;
             for (Tab b : tabs.getTabs()) {
                 if (b.getText().endsWith("*")) {
                     option = true;
                 }
             }
+            ed.saveScripts();
             if (option) {
                 Alert al = new Alert(AlertType.CONFIRMATION);
                 al.setHeaderText("Would you like to save before closing?");
@@ -110,23 +112,25 @@ public class Y86VM extends Application {
                 al.getButtonTypes().add(ButtonType.NO);
                 al.showAndWait().ifPresent((ef) -> {
                     if (ef == ButtonType.OK) {
-                        Editor ed = (Editor) stage.getScene().getRoot();
-                        ed.saveScripts();
-                        if (stage.isFullScreen()) {
-                            stage.setFullScreen(false);
-                        }
-                        st.show();
+                        ed.saveAll();
+                        showIntro(stage, st);
                     } else if (ef == ButtonType.CANCEL) {
                         e.consume();
+                    } else {
+                        showIntro(stage, st);
                     }
                 });
             } else {
-                if (stage.isFullScreen()) {
-                    stage.setFullScreen(false);
-                }
-                st.show();
+                showIntro(stage, st);
             }
         });
+    }
+
+    private void showIntro(Stage stage, Stage st) {
+        if (stage.isFullScreen()) {
+            stage.setFullScreen(false);
+        }
+        st.show();
     }
 
     public static void main(String[] args) {

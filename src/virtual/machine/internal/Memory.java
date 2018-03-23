@@ -1,4 +1,3 @@
-
 package virtual.machine.internal;
 
 import virtual.machine.core.Strings;
@@ -55,7 +54,7 @@ public class Memory {
     public byte getByte(int address) {
         int rem = address & 3;
         address = address - rem;
-        rem = Integer.SIZE - (rem << 3);
+        rem = 24 - (rem << 3);
         Integer b = memory.get(address);
         return (byte) (b == null ? 0 : ((b >>> rem) & 0xFF));
     }
@@ -64,7 +63,7 @@ public class Memory {
         if (address < capacity) {
             int rem = address & 3;
             address = address - rem;
-            rem = Integer.SIZE - (rem << 3);
+            rem = 24 - (rem << 3);
             Integer b = memory.get(address);
             if (b == null) {
                 b = 0;
