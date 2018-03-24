@@ -8,4 +8,4 @@ It supports:
 * Syntax highlighting
 * Display compile-time errors instantly
 * Breakpoint support
-[comment]: <> (* Additional Mathematical Instructions : multq, divq, modq, sarq, slrq, salq, orq, notq, negq)
+* Additional Mathematical Instructions : multq, divq, modq, sarq, slrq, salq, orq

@@ -6,7 +6,7 @@ Main:
 	irmovq $12, %rax
 	rmmovq %rax, -8(%rsp)
 	mrmovq -8(%rsp), %rcx
-	addq %rax, %rax
+	multq %rax, %rax
 	pushq %rax
 	popq %rax
 	ret

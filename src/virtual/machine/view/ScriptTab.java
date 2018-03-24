@@ -64,7 +64,8 @@ public class ScriptTab extends Tab {
         "cmovl", "addq", "rrmovq",
         "irmovq", "jne", "ret", "jle", "rmmovq",
         "cmovne", "cmovle", "call",
-        "halt", "popq", "pushq", "mrmovq", "je", "jg"
+        "halt", "popq", "pushq", "mrmovq", "je", "jg",
+        "multq", "divq", "modq", "sarq", "shrq", "salq", "orq"
     };
 
     private static final String[] DIRECTIVES = new String[]{

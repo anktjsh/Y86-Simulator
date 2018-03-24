@@ -1,5 +1,6 @@
 package virtual.machine.execution;
 
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import virtual.machine.internal.Environment;
 import virtual.machine.internal.Memory;
@@ -116,6 +117,13 @@ public class Interpreter {
             case 0x61:
             case 0x62:
             case 0x63:
+            case 0x64:
+            case 0x65:
+            case 0x66:
+            case 0x67:
+            case 0x68:
+            case 0x69:
+            case 0x6A:
                 regs = memory.getByte(programCount);
                 reg2 = (byte) (regs & 0xF);
                 reg1 = (byte) ((regs >>> 4) & 0xF);
@@ -263,12 +271,24 @@ public class Interpreter {
 
     private void operation(byte op, byte reg2, long a, long b) {
         long result;
+        long asign = a >>> 63;
+        long bsign = b >>> 63;
+        long lsign;
+        boolean overflo = false;
         switch (op) {
             case 0x60:
                 result = b + a;
+                lsign = result >>> 63;
+                if (asign == bsign && asign != lsign) {
+                    overflo = true;
+                }
                 break;
             case 0x61:
                 result = b - a;
+                lsign = result >>> 63;
+                if (asign == lsign && asign != bsign) {
+                    overflo = true;
+                }
                 break;
             case 0x62:
                 result = b & a;
@@ -276,33 +296,39 @@ public class Interpreter {
             case 0x63:
                 result = b ^ a;
                 break;
-//            case 0x64:
-//                result = b * a;
-//                break;
-//            case 0x65:
-//                result = b / a;
-//                break;
-//            case 0x66:
-//                result = b % a;
-//                break;
-//            case 0x67:
-//                result = b >> a;
-//                break;
-//            case 0x68:
-//                result = b >>> a;
-//                break;
-//            case 0x69:
-//                result = b << a;
-//                break;
-//            case 0x6A:
-//                result = b | a;
-//                break;
-////            case 0x6B:
-////                result = a + b;
-////                break;
-////            case 0x6C:
-////                result = a + b;
-////                break;
+            case 0x64:
+                result = b * a;
+                BigInteger mu = BigInteger.valueOf(b).multiply(BigInteger.valueOf(a));
+                if ((mu.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) < 0) || (mu.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0)) {
+                    overflo = true;
+                }
+                break;
+            case 0x65:
+                if (a == 0) {
+                    environ.setStatus(2);
+                    result = 0;
+                    break;
+                }
+                result = b / a;
+                if (b == 0x80000000 && a == -1) {
+                    overflo = true;
+                }
+                break;
+            case 0x66:
+                result = b % a;
+                break;
+            case 0x67:
+                result = b >> a;
+                break;
+            case 0x68:
+                result = b >>> a;
+                break;
+            case 0x69:
+                result = b << a;
+                break;
+            case 0x6A:
+                result = b | a;
+                break;
             default:
                 result = 0;
         }
@@ -317,17 +343,6 @@ public class Interpreter {
         } else {
             environ.setSign(false);
         }
-        if (op == 0x60 || op == 0x61) {
-            long asign = a >>> 63;
-            long bsign = b >>> 63;
-            long lsign = result >>> 63;
-            if ((op == 0x60 && asign == bsign && asign != lsign) || (op == 0x61 && asign == lsign && asign != bsign)) {
-                environ.setOverflow(true);
-            } else {
-                environ.setOverflow(false);
-            }
-        } else {
-            environ.setOverflow(false);
-        }
+        environ.setOverflow(overflo);
     }
 }

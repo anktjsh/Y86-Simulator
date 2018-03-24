@@ -95,14 +95,13 @@ public class Script {
     }
 
     public void saveBreakpoints(ObservableSet<Integer> breakpoints) {
-        //convert to stringbuilder approach and save string bytes
+        StringBuilder sb = new StringBuilder();
         File f = new File(file.getParentFile(), file.getName().substring(0, file.getName().length() - 2) + "-breakpoints");
-        ArrayList<String> al = new ArrayList<>();
         for (int n : breakpoints) {
-            al.add(Integer.toString(n));
+            sb.append(n).append(" ");
         }
         try {
-            Files.write(f.toPath(), al);
+            Files.write(f.toPath(), sb.toString().getBytes());
         } catch (IOException ex) {
         }
     }
@@ -112,10 +111,10 @@ public class Script {
         try {
             File f = new File(file.getParentFile(), file.getName().substring(0, file.getName().length() - 2) + "-breakpoints");
             Scanner in = new Scanner(f);
-            while (in.hasNextLine()) {
-                try {
-                    al.add(Integer.parseInt(in.nextLine()));
-                } catch (NumberFormatException e) {
+            if (in.hasNextLine()) {
+                Scanner read = new Scanner(in.nextLine());
+                while (read.hasNextInt()) {
+                    al.add(read.nextInt());
                 }
             }
         } catch (FileNotFoundException ex) {

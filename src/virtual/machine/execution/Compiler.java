@@ -33,13 +33,13 @@ public class Compiler {
             put("andq", (byte) 0x62);
             put("xorq", (byte) 0x63);
 
-//            put("multq", (byte) 0x64);
-//            put("divq", (byte) 0x65);
-//            put("modq", (byte) 0x66);
-//            put("sarq", (byte) 0x67);
-//            put("slrq", (byte) 0x68);
-//            put("salq", (byte) 0x69);
-//            put("orq", (byte) 0x6A);
+            put("multq", (byte) 0x64);
+            put("divq", (byte) 0x65);
+            put("modq", (byte) 0x66);
+            put("sarq", (byte) 0x67);
+            put("shrq", (byte) 0x68);
+            put("salq", (byte) 0x69);
+            put("orq", (byte) 0x6A);
 //            //put("notq", (byte) 0x6B);
 //            //put("negq", (byte) 0x6C);
             put("jmp", (byte) 0x70);
@@ -94,17 +94,15 @@ public class Compiler {
             put("subq", (byte) 2);
             put("andq", (byte) 2);
             put("xorq", (byte) 2);
-
             put("multq", (byte) 2);
             put("divq", (byte) 2);
             put("modq", (byte) 2);
             put("sarq", (byte) 2);
-            put("slrq", (byte) 2);
+            put("shrq", (byte) 2);
             put("salq", (byte) 2);
             put("orq", (byte) 2);
-            put("notq", (byte) 2);
-            put("negq", (byte) 2);
-
+//            put("notq", (byte) 2);
+//            put("negq", (byte) 2);
             put("jmp", (byte) 9);
             put("jle", (byte) 9);
             put("jl", (byte) 9);
@@ -133,8 +131,6 @@ public class Compiler {
     public Set<String> getLabels() {
         return lab;
     }
-
-    //catch index out of bounds?
     public synchronized ArrayList<Pair<String, ArrayList<Byte>>> compile(String s) throws CompilerException {
         ArrayList<Pair<String, ArrayList<Byte>>> oper = new ArrayList<>();
         long indexPos = 0;
