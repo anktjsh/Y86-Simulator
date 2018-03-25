@@ -58,6 +58,10 @@ public class Registers {
 
     public void reset() {
         Arrays.fill(registers, 0);
+        for (int i = 0; i < registers.length; i++) {
+            regList.get(i).setHex(Strings.getHex(0, 4));
+            regList.get(i).setDecimal(Strings.getDecimal(0, 5));
+        }
     }
 
     public class Register {

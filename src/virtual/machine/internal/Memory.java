@@ -71,7 +71,7 @@ public class Memory {
             int mask = (b ^ (value << rem)) & (0xFF << rem);
             memory.put(address, mask ^ b);
         } else {
-            environ.setStatus(3);
+            environ.setStatus(2);
         }
     }
 

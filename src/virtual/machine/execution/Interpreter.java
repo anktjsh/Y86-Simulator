@@ -2,6 +2,7 @@ package virtual.machine.execution;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import virtual.machine.internal.Environment;
 import virtual.machine.internal.Memory;
 
@@ -176,7 +177,7 @@ public class Interpreter {
                 if (pushToStack(environ.programCounter() + 8)) {
                     jump(programCount);
                 } else {
-                    environ.setStatus(2);
+                    environ.setStatus(3);
                 }
                 break;
             case (byte) 0x90:
@@ -192,7 +193,7 @@ public class Interpreter {
                 break;
             case (byte) 0xA0:
                 if (!pushToStack(environ.getRegister().getValueFromRegister(memory.getByte(programCount) >>> 4))) {
-                    environ.setStatus(2);
+                    environ.setStatus(3);
                 }
                 result = 1;
                 break;
@@ -200,8 +201,15 @@ public class Interpreter {
                 popFromStack(memory.getByte(programCount) >>> 4);
                 result = 1;
                 break;
+            case (byte) 0xC0:
+            case (byte) 0xC1:
+            case (byte) 0xC2:
+            case (byte) 0xC3:
+            case (byte) 0xC4:
+                singleOp(a, (byte) (memory.getByte(programCount) >>> 4));
+                break;
             default:
-                environ.setStatus(2);
+                environ.setStatus(3);
                 break;
         }
         return result;
@@ -269,6 +277,50 @@ public class Interpreter {
         environ.getRegister().setValueInRegister(reg2, environ.getRegister().getValueFromRegister(reg1));
     }
 
+    private void singleOp(byte op, byte reg) {
+        long val = environ.getRegister().getValueFromRegister(reg);
+        boolean overflo = false;
+        switch (op) {
+            case (byte) 0xC0:
+                val = ~val;
+                break;
+            case (byte) 0xC1:
+                val = -val;
+                break;
+            case (byte) 0xC2:
+                val++;
+                if (val == Long.MIN_VALUE) {
+                    overflo = true;
+                }
+                break;
+            case (byte) 0xC3:
+                val--;
+                if (val == Long.MAX_VALUE) {
+                    overflo = true;
+                }
+                break;
+            case (byte) 0xC4:
+                val = bang(val);
+                break;
+        }
+        environ.getRegister().setValueInRegister(reg, val);
+        if (val == 0) {
+            environ.setZero(true);
+        } else {
+            environ.setZero(false);
+        }
+        if (val < 0) {
+            environ.setSign(true);
+        } else {
+            environ.setSign(false);
+        }
+        environ.setOverflow(overflo);
+    }
+
+    private static long bang(long x) {
+        return ((x >> 63) | ((~x + 1) >> 63)) + 1;
+    }
+
     private void operation(byte op, byte reg2, long a, long b) {
         long result;
         long asign = a >>> 63;
@@ -305,7 +357,7 @@ public class Interpreter {
                 break;
             case 0x65:
                 if (a == 0) {
-                    environ.setStatus(2);
+                    environ.setStatus(3);
                     result = 0;
                     break;
                 }

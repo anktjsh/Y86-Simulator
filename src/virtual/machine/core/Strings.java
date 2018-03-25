@@ -37,9 +37,13 @@ public class Strings {
     }
 
     public static String getDecimal(int a, int l) {
+        StringBuilder newBuild = newBuild();
+        if (a < 0) {
+            a = -a;
+            newBuild.append("-");
+        }
         String valA = Integer.toString(a).toUpperCase();
         int offset = 0;
-        StringBuilder newBuild = newBuild();
         while (valA.length() + offset < l) {
             newBuild.append("0");
             offset++;
@@ -61,9 +65,13 @@ public class Strings {
     }
 
     public static String getDecimal(long a, int l) {
+        StringBuilder newBuild = newBuild();
+        if (a < 0) {
+            a = -a;
+            newBuild.append("-");
+        }
         String valA = Long.toString(a).toUpperCase();
         int offset = 0;
-        StringBuilder newBuild = newBuild();
         while (valA.length() + offset < l) {
             newBuild.append("0");
             offset++;

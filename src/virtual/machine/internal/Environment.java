@@ -70,9 +70,9 @@ public class Environment {
             case 1:
                 return "HLT";
             case 2:
-                return "INS";
-            default:
                 return "ADR";
+            default:
+                return "INS";
         }
     }
 

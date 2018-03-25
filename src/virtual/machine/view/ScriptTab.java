@@ -46,18 +46,18 @@ import virtual.machine.execution.ConcurrentCompiler;
  * @author aniket
  */
 public class ScriptTab extends Tab {
-
+    
     private final CodeArea area;
     private final Script script;
-
+    
     private final ObservableSet<Integer> breakpoints = FXCollections.observableSet(new HashSet<>());
     private final Pair<Integer, String> errorLines = new Pair<>(-1, "");
     private IntFunction<Node> numberFactory;
     private IntFunction<Node> arrowFactory;
     private IntFunction<Node> breakFactory;
-
+    
     private final IntegerProperty rowPosition;
-
+    
     private static final String[] KEYWORDS = new String[]{
         "jl", "subq", "jge", "cmovge", "jmp", "nop",
         "xorq", "cmovg", "cmove", "andq",
@@ -65,27 +65,28 @@ public class ScriptTab extends Tab {
         "irmovq", "jne", "ret", "jle", "rmmovq",
         "cmovne", "cmovle", "call",
         "halt", "popq", "pushq", "mrmovq", "je", "jg",
-        "multq", "divq", "modq", "sarq", "shrq", "salq", "orq"
+        "multq", "divq", "modq", "sarq", "shrq", "salq", "orq",
+        "incq", "decq", "notq", "negq", "bangq"
     };
-
+    
     private static final String[] DIRECTIVES = new String[]{
         "align", "pos", "quad"
     };
-
+    
     private static final String[] REGISTERS = new String[]{
         "rax", "rcx", "rdx", "rsp", "rbp", "r8", "r9", "r10",
         "r11", "r12", "r13", "r14", "rbx", "rsi", "rdi"
     };
-
+    
     private static final Set<String> CURRENT = new HashSet<>(Compiler.getInstance().getLabels());
-
+    
     private static final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
     private static final String REGISTER_PATTERN = "\\b(" + String.join("|", REGISTERS) + ")\\b";
     private static String LABEL_PATTERN = "\\b(" + String.join("|", CURRENT) + ")\\b";
     private static final String COMMENT_PATTERN = "#[^\n]*";
     private static final String CONSTANT_PATTERN = "\\$";
     private static final String DIRECTIVE_PATTERN = "\\b(" + String.join("|", DIRECTIVES) + ")\\b";
-
+    
     private static Pattern PATTERN = Pattern.compile(
             "(?<KEYWORD>" + KEYWORD_PATTERN + ")"
             + "|(?<DIRECTIVE>" + DIRECTIVE_PATTERN + ")"
@@ -94,11 +95,11 @@ public class ScriptTab extends Tab {
             + "|(?<COMMENT>" + COMMENT_PATTERN + ")"
             + "|(?<CONSTANT>" + CONSTANT_PATTERN + ")"
     );
-
+    
     public ObservableSet<Integer> getBreakpoints() {
         return breakpoints;
     }
-
+    
     private int getRow(int caret) {
         String spl[] = area.getText().split("\n");
         int count = 0;
@@ -112,7 +113,7 @@ public class ScriptTab extends Tab {
         }
         return -1;
     }
-
+    
     public ScriptTab(Script scr) {
         super(scr.getFile().getName());
         script = scr;
@@ -210,6 +211,7 @@ public class ScriptTab extends Tab {
                 });
         concurrent(scr.getCurrentCode());
         area.replaceText(scr.getCurrentCode());
+        area.scrollToPixel(0, 0);
         area.textProperty().addListener((ob, older, newer) -> {
             if (scr.canSave(newer)) {
                 setText(scr.getFile().getName() + "*");
@@ -263,7 +265,7 @@ public class ScriptTab extends Tab {
         });
         breakpoints.addAll(script.getBreakpoints());
     }
-
+    
     private void addBreakpoint() {
         String[] spl = area.getText().split("\n");
         if (rowPosition.get() < spl.length && !spl[rowPosition.get()].trim().isEmpty()) {
@@ -274,7 +276,7 @@ public class ScriptTab extends Tab {
             }
         }
     }
-
+    
     public final void concurrent(String s) {
         ConcurrentCompiler.compile(s, (Pair<Integer, String> param) -> {
             if (param != null) {
@@ -288,46 +290,46 @@ public class ScriptTab extends Tab {
             return null;
         });
     }
-
+    
     public void undo() {
         area.undo();
     }
-
+    
     public void redo() {
         area.redo();
     }
-
+    
     public void cut() {
         area.cut();
     }
-
+    
     public void copy() {
         area.copy();
     }
-
+    
     public void paste() {
         area.paste();
     }
-
+    
     public void selectAll() {
         area.selectAll();
     }
-
+    
     public Script getScript() {
         return script;
     }
-
+    
     public void save() {
         script.save(area.getText());
         setText(script.getFile().getName());
     }
-
+    
     private void initFactory() {
         numberFactory = LineNumberFactory.get(area);
         arrowFactory = new ErrorFactory(errorLines);
         breakFactory = new BreakPointFactory(breakpoints);
     }
-
+    
     private void placeFactory() {
         area.setParagraphGraphicFactory(
                 line -> {
@@ -336,7 +338,7 @@ public class ScriptTab extends Tab {
                     return hbox;
                 });
     }
-
+    
     private static void refreshPattern() {
         if (!CURRENT.equals(Compiler.getInstance().getLabels())) {
             CURRENT.clear();
@@ -352,7 +354,7 @@ public class ScriptTab extends Tab {
             );
         }
     }
-
+    
     private static StyleSpans<Collection<String>> computeHighlighting(String text) {
         refreshPattern();
         Matcher matcher = PATTERN.matcher(text);

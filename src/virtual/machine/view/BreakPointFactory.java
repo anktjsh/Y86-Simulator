@@ -12,13 +12,13 @@ import org.reactfx.value.Val;
  * @author Aniket
  */
 public class BreakPointFactory implements IntFunction<Node> {
-    
+
     private final ObservableSet<Integer> lines;
-    
+
     public BreakPointFactory(ObservableSet<Integer> liner) {
         lines = liner;
     }
-    
+
     @Override
     public Node apply(int lineNumber) {
         Circle tri = new Circle(5, Color.DARKRED);
@@ -27,9 +27,9 @@ public class BreakPointFactory implements IntFunction<Node> {
         }));
         return tri;
     }
-    
+
     private boolean contains(int linenumber) {
         return lines.stream().anyMatch((one) -> (one == linenumber));
     }
-    
+
 }

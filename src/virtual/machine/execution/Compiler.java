@@ -40,8 +40,6 @@ public class Compiler {
             put("shrq", (byte) 0x68);
             put("salq", (byte) 0x69);
             put("orq", (byte) 0x6A);
-//            //put("notq", (byte) 0x6B);
-//            //put("negq", (byte) 0x6C);
             put("jmp", (byte) 0x70);
             put("jle", (byte) 0x71);
             put("jl", (byte) 0x72);
@@ -53,7 +51,11 @@ public class Compiler {
             put("ret", (byte) 0x90);
             put("pushq", (byte) 0xA0);
             put("popq", (byte) 0xB0);
-
+            put("notq", (byte) 0xC0);
+            put("negq", (byte) 0xC1);
+            put("incq", (byte) 0xC2);
+            put("decq", (byte) 0xC3);
+            put("bangq", (byte) 0xC4);
             put("%rax", (byte) 0x0);
             put("%rcx", (byte) 0x1);
             put("%rdx", (byte) 0x2);
@@ -101,8 +103,6 @@ public class Compiler {
             put("shrq", (byte) 2);
             put("salq", (byte) 2);
             put("orq", (byte) 2);
-//            put("notq", (byte) 2);
-//            put("negq", (byte) 2);
             put("jmp", (byte) 9);
             put("jle", (byte) 9);
             put("jl", (byte) 9);
@@ -114,6 +114,11 @@ public class Compiler {
             put("ret", (byte) 1);
             put("pushq", (byte) 2);
             put("popq", (byte) 2);
+            put("notq", (byte) 2);
+            put("negq", (byte) 2);
+            put("incq", (byte) 2);
+            put("decq", (byte) 2);
+            put("bangq", (byte) 2);
         }
     };
 
@@ -131,6 +136,7 @@ public class Compiler {
     public Set<String> getLabels() {
         return lab;
     }
+
     public synchronized ArrayList<Pair<String, ArrayList<Byte>>> compile(String s) throws CompilerException {
         ArrayList<Pair<String, ArrayList<Byte>>> oper = new ArrayList<>();
         long indexPos = 0;
@@ -292,6 +298,9 @@ public class Compiler {
                 throw new CompilerException(line, "insufficient operands");
             }
             String register = read.next();
+            if (!mappings.containsKey(register)) {
+                throw new CompilerException(line, "invalid operands");
+            }
             byt.add((byte) (mappings.get(register) | (0xF << 4)));
             for (byte b : array) {
                 byt.add(b);
@@ -385,16 +394,26 @@ public class Compiler {
             for (byte b : array) {
                 byt.add(b);
             }
-        } else if (s.startsWith("popq") || s.startsWith("pushq")) {
+        } else if (s.startsWith("popq") || s.startsWith("pushq")
+                || s.startsWith("notq") || s.startsWith("negq")
+                || s.startsWith("incq") || s.startsWith("decq")
+                || s.startsWith("bangq")) {
             Scanner read = new Scanner(s);
             if (!read.hasNext()) {
                 throw new CompilerException(line, "insufficient operands");
             }
-            byt.add(mappings.get(read.next()));
+            String next = read.next();
+            if (!mappings.containsKey(next)) {
+                throw new CompilerException(line, "invalid operands");
+            }
+            byt.add(mappings.get(next));
             if (!read.hasNext()) {
                 throw new CompilerException(line, "insufficient operands");
             }
             String register = read.next();
+            if (!mappings.containsKey(register)) {
+                throw new CompilerException(line, "invalid operands");
+            }
             byt.add((byte) (mappings.get(register) << 4 | 0xF));
         } else {
             s = s.replaceAll(",", " ");
@@ -409,7 +428,7 @@ public class Compiler {
                     byte b = mappings.get(val);
                     if (val.startsWith("%")) {
                         if (lessThan) {
-                            byt.set(byt.size() - 1, (byte) (byt.get(byt.size() - 1) << 8 | b));
+                            byt.set(byt.size() - 1, (byte) (byt.get(byt.size() - 1) << 4 | b));
                             lessThan = false;
                         } else {
                             byt.add(b);

@@ -92,7 +92,7 @@ public class Editor extends BorderPane {
     private final IntegerProperty counterLine = new SimpleIntegerProperty(0);
     private final BooleanProperty runnable = new SimpleBooleanProperty(false);
     private final ObservableSet<Integer> breakpoints = FXCollections.observableSet(new HashSet<>());
-    
+
     public Editor(Environment environ) {
         environment = environ;
         MenuBar bar = build();
@@ -235,7 +235,7 @@ public class Editor extends BorderPane {
                     }
                 }
             }
-            
+
         });
         /**
          * left column all memory
@@ -366,7 +366,6 @@ public class Editor extends BorderPane {
                         environment.override();
                         run();
                     } else {
-                        System.out.println(environment.getStatus());
                     }
                 });
             });
@@ -400,9 +399,9 @@ public class Editor extends BorderPane {
             event.setDropCompleted(success);
             event.consume();
         });
-        
+
     }
-    
+
     private void alignCounter(int newValue) {
         if (center.getBottom() != null) {
             int num = 0;
@@ -420,7 +419,7 @@ public class Editor extends BorderPane {
             counterLine.set(num);
         }
     }
-    
+
     private void readScripts() {
         try {
             File config = new File("assembly/config.txt");
@@ -435,7 +434,7 @@ public class Editor extends BorderPane {
         } catch (IOException ex) {
         }
     }
-    
+
     public void saveScripts() {
         File config = new File("assembly/config.txt");
         ArrayList<String> save = new ArrayList<>();
@@ -447,7 +446,7 @@ public class Editor extends BorderPane {
         } catch (IOException ex) {
         }
     }
-    
+
     private Optional<ScriptTab> getSelectedTab() {
         Tab b = pane.getSelectionModel().getSelectedItem();
         if (b != null) {
@@ -456,55 +455,55 @@ public class Editor extends BorderPane {
         }
         return Optional.empty();
     }
-    
+
     public void save() {
         getSelectedTab().ifPresent((e) -> {
             e.save();
         });
     }
-    
+
     public void undo() {
         getSelectedTab().ifPresent((e) -> {
             e.undo();
         });
     }
-    
+
     public void redo() {
         getSelectedTab().ifPresent((e) -> {
             e.redo();
         });
     }
-    
+
     public void cut() {
         getSelectedTab().ifPresent((e) -> {
             e.cut();
         });
     }
-    
+
     public void copy() {
         getSelectedTab().ifPresent((e) -> {
             e.copy();
         });
     }
-    
+
     public void paste() {
         getSelectedTab().ifPresent((e) -> {
             e.paste();
         });
     }
-    
+
     public void selectAll() {
         getSelectedTab().ifPresent((e) -> {
             e.selectAll();
         });
     }
-    
+
     public void saveAll() {
         pane.getTabs().stream().filter((b) -> (b instanceof ScriptTab)).map((b) -> (ScriptTab) b).forEachOrdered((sc) -> {
             sc.save();
         });
     }
-    
+
     public void next() {
         if (runnable.get()) {
             environment.nextInstruction((param) -> {
@@ -513,7 +512,7 @@ public class Editor extends BorderPane {
             }, breakpoints);
         }
     }
-    
+
     public void run() {
         if (runnable.get()) {
             environment.run((param) -> {
@@ -522,17 +521,17 @@ public class Editor extends BorderPane {
             }, breakpoints);
         }
     }
-    
+
     private void refresh() {
         memory.refresh();
         registers.refresh();
     }
-    
+
     public void stop() {
         environment.setStatus(1);
         runnable.set(false);
     }
-    
+
     public void compile() {
         save();
         reset();
@@ -591,7 +590,7 @@ public class Editor extends BorderPane {
             }
         });
     }
-    
+
     public void reset() {
         environment.getRegister().reset();
         environment.getMemory().reset();
@@ -602,7 +601,7 @@ public class Editor extends BorderPane {
         }
         runnable.set(false);
     }
-    
+
     public void openFile() {
         FileChooser fc = new FileChooser();
         fc.setTitle("Files");
@@ -613,7 +612,7 @@ public class Editor extends BorderPane {
             loadFile(open);
         }
     }
-    
+
     private void loadFile(File open) {
         Script sca = new Script(open, "");
         boolean go = true;
@@ -629,7 +628,7 @@ public class Editor extends BorderPane {
             pane.getTabs().add(new ScriptTab(sca));
         }
     }
-    
+
     public void newFile() {
         TextInputDialog tid = new TextInputDialog("assembly");
         tid.initOwner(getScene().getWindow());
@@ -649,7 +648,7 @@ public class Editor extends BorderPane {
             }
         });
     }
-    
+
     private MenuBar build() {
         MenuBar bar = new MenuBar();
         bar.getMenus().addAll(new Menu("File"), new Menu("Edit"),
@@ -711,7 +710,7 @@ public class Editor extends BorderPane {
         });
         return bar;
     }
-    
+
     public static void fadingNotification(Node node, String message) {
         Font font = Font.font("Verdana", FontWeight.NORMAL, 20);
         Color boxColor = Color.GREY;
@@ -776,5 +775,5 @@ public class Editor extends BorderPane {
         ft2.setToValue(0.0);
         ft2.play();
     }
-    
+
 }

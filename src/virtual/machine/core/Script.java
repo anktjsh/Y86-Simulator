@@ -97,9 +97,9 @@ public class Script {
     public void saveBreakpoints(ObservableSet<Integer> breakpoints) {
         StringBuilder sb = new StringBuilder();
         File f = new File(file.getParentFile(), file.getName().substring(0, file.getName().length() - 2) + "-breakpoints");
-        for (int n : breakpoints) {
+        breakpoints.forEach((n) -> {
             sb.append(n).append(" ");
-        }
+        });
         try {
             Files.write(f.toPath(), sb.toString().getBytes());
         } catch (IOException ex) {
