@@ -48,6 +48,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
@@ -63,6 +64,7 @@ import javafx.stage.Modality;
 import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
+import virtual.machine.core.KeyStrings;
 import virtual.machine.core.Pair;
 import virtual.machine.core.Script;
 import virtual.machine.internal.Environment;
@@ -71,6 +73,7 @@ import virtual.machine.execution.CompilerException;
 import virtual.machine.internal.Memory.Data;
 import virtual.machine.internal.Registers.Register;
 import virtual.machine.core.Strings;
+import virtual.machine.internal.Environment.Condition;
 
 /**
  *
@@ -83,7 +86,7 @@ public class Editor extends BorderPane {
     private final TabPane pane;
     private final BorderPane center;
     private final VirtualizedScrollPane virtual;
-    private final BorderPane top, left, right, rightTop;
+    private final BorderPane top, left;
     private final ToolBar icons;
     private final TableView<Data> memory;
     private final TableView<Register> registers;
@@ -109,7 +112,7 @@ public class Editor extends BorderPane {
                 new MaterialDesignIconView(MaterialDesignIcon.CONTENT_SAVE_ALL),
                 new MaterialDesignIconView(MaterialDesignIcon.UNDO),
                 new MaterialDesignIconView(MaterialDesignIcon.REDO),
-                new MaterialDesignIconView(MaterialDesignIcon.CODE_ARRAY),
+                new MaterialDesignIconView(MaterialDesignIcon.ANDROID_STUDIO),
                 new MaterialDesignIconView(MaterialDesignIcon.PLAY),
                 new MaterialDesignIconView(MaterialDesignIcon.FAST_FORWARD),
                 new MaterialDesignIconView(MaterialDesignIcon.REPLAY),
@@ -163,6 +166,7 @@ public class Editor extends BorderPane {
         ((Button) icons.getItems().get(14)).setOnAction((e) -> {
             stop();
         });
+        Tooltip.install(icons.getItems().get(14), new Tooltip("Stop Execution"));
         Tooltip.install(icons.getItems().get(13), new Tooltip("Reset Environment"));
         Tooltip.install(icons.getItems().get(11), new Tooltip("Next Instruction"));
         Tooltip.install(icons.getItems().get(10), new Tooltip("Run Program"));
@@ -230,12 +234,20 @@ public class Editor extends BorderPane {
                         case V:
                             paste();
                             break;
+                        case F:
+                            find();
+                            break;
+                        case R:
+                            replace();
+                            break;
+                        case A:
+                            selectAll();
+                            break;
                         default:
                             break;
                     }
                 }
             }
-
         });
         /**
          * left column all memory
@@ -273,10 +285,15 @@ public class Editor extends BorderPane {
         /**
          * bottom all registers
          */
-        right = new BorderPane();
+        VBox right = new VBox(5);
+        Label pc = new Label("Program Counter : " + Strings.getHex(environment.programCounter(), 4));
+        Label st = new Label("Status : " + environment.getStatus());
+        right.getChildren().addAll(pc, st);
+        right.setAlignment(Pos.TOP_CENTER);
+        right.setPadding(new Insets(5));
         registers.setEditable(true);
         Label titl = new Label("Registers");
-        right.setTop(titl);
+        right.getChildren().add(titl);
         TableColumn<Register, String> register = new TableColumn("Register");
         register.setSortable(false);
         TableColumn<Register, String> hex = new TableColumn("Value");
@@ -287,10 +304,7 @@ public class Editor extends BorderPane {
         register.setCellValueFactory(new PropertyValueFactory("name"));
         hex.setCellValueFactory(new PropertyValueFactory("hex"));
         deci.setCellValueFactory(new PropertyValueFactory("decimal"));
-        BorderPane.setAlignment(titl, Pos.CENTER);
-        BorderPane.setMargin(titl, new Insets(5));
         setRight(right);
-        BorderPane.setMargin(registers, new Insets(5));
         registers.getItems().addAll(environment.getRegister().registerData());
         hex.setCellFactory(TextFieldTableCell.<Register>forTableColumn());
         hex.setOnEditCommit((CellEditEvent<Register, String> t) -> {
@@ -320,25 +334,26 @@ public class Editor extends BorderPane {
         /**
          * condition codes
          */
-        rightTop = new BorderPane();
-        VBox flags = new VBox(5);
-        Label z = new Label("Zero Flag : " + environment.isZero()),
-                s = new Label("Sign Flag : " + environment.isSign()),
-                o = new Label("Overflow Flag : " + environment.isOverflow()),
-                st = new Label("Status : " + environment.getStatus()),
-                pc = new Label("Program Counter : " + Strings.getHex(environment.programCounter(), 4));
-        flags.setAlignment(Pos.CENTER);
-        flags.setPadding(new Insets(5));
-        flags.getChildren().addAll(z, s, o, st, pc);
-        rightTop.setCenter(flags);
+        TableView<Condition> codes = new TableView<>();
+        TableColumn nam = new TableColumn("Condition Code");
+        nam.setSortable(false);
+        TableColumn<Condition, String> cod = new TableColumn<>("Value");
+        cod.setSortable(false);
+        cod.setCellValueFactory(new PropertyValueFactory("stateValue"));
+        nam.setCellValueFactory(new PropertyValueFactory("name"));
+        codes.getColumns().addAll(nam, cod);
+        codes.getItems().addAll(environment.getCodes());
         environment.zeroProperty().addListener((ob, older, newer) -> {
-            z.setText("Zero Flag : " + environment.isZero());
+            codes.refresh();
         });
         environment.overflowProperty().addListener((ob, older, newer) -> {
-            s.setText("Sign Flag : " + environment.isSign());
+            codes.refresh();
         });
         environment.signProperty().addListener((ob, older, newer) -> {
-            o.setText("Overflow Flag : " + environment.isOverflow());
+            codes.refresh();
+        });
+        environment.carryProperty().addListener((ob, older, newer) -> {
+            codes.refresh();
         });
         environment.status().addListener((ob, older, newer) -> {
             st.setText("Status : " + environment.getStatus());
@@ -376,8 +391,9 @@ public class Editor extends BorderPane {
                 return cursor.apply(line);
             });
         });
-        right.setTop(rightTop);
-        right.setCenter(registers);
+        right.getChildren().add(registers);
+        right.getChildren().add(new Label("Condition Codes"));
+        right.getChildren().add(codes);
         setOnDragOver((event) -> {
             Dragboard db = event.getDragboard();
             if (db.hasFiles()) {
@@ -489,6 +505,18 @@ public class Editor extends BorderPane {
     public void paste() {
         getSelectedTab().ifPresent((e) -> {
             e.paste();
+        });
+    }
+
+    public void find() {
+        getSelectedTab().ifPresent((e) -> {
+            e.find();
+        });
+    }
+
+    public void replace() {
+        getSelectedTab().ifPresent((e) -> {
+            e.replace();
         });
     }
 
@@ -652,9 +680,10 @@ public class Editor extends BorderPane {
     private MenuBar build() {
         MenuBar bar = new MenuBar();
         bar.getMenus().addAll(new Menu("File"), new Menu("Edit"),
-                new Menu("Run"));
-        bar.getMenus().get(0).getItems().addAll(new MenuItem("New File"),
-                new MenuItem("Open File"), new MenuItem("Save"), new MenuItem("Save All"));
+                new Menu("Run"), new Menu("About"));
+        bar.getMenus().get(0).getItems().addAll(new MenuItem("New File\t\t\t" + KeyStrings.getCode(KeyCode.N, true, false)),
+                new MenuItem("Open File\t\t" + KeyStrings.getCode(KeyCode.O, true, false)),
+                new MenuItem("Save\t\t\t" + KeyStrings.getCode(KeyCode.S, true, false)), new MenuItem("Save All\t\t" + KeyStrings.getCode(KeyCode.S, true, true)));
         bar.getMenus().get(0).getItems().get(0).setOnAction((e) -> {
             newFile();
         });
@@ -664,12 +693,13 @@ public class Editor extends BorderPane {
         bar.getMenus().get(0).getItems().get(2).setOnAction((e) -> {
             save();
         });
-        bar.getMenus().get(0).getItems().get(2).setOnAction((e) -> {
+        bar.getMenus().get(0).getItems().get(3).setOnAction((e) -> {
             saveAll();
         });
-        bar.getMenus().get(1).getItems().addAll(new MenuItem("Undo"),
-                new MenuItem("Redo"), new MenuItem("Cut"), new MenuItem("Copy"),
-                new MenuItem("Paste"), new MenuItem("Select All"));
+        bar.getMenus().get(1).getItems().addAll(new MenuItem("Undo\t\t" + KeyStrings.getCode(KeyCode.Z, true, false)),
+                new MenuItem("Redo\t\t" + KeyStrings.getCode(KeyCode.Y, true, false)), new MenuItem("Cut\t\t\t" + KeyStrings.getCode(KeyCode.X, true, false)), new MenuItem("Copy\t\t" + KeyStrings.getCode(KeyCode.C, true, false)),
+                new MenuItem("Paste\t\t" + KeyStrings.getCode(KeyCode.V, true, false)), new MenuItem("Select All\t" + KeyStrings.getCode(KeyCode.A, true, false)),
+                new MenuItem("Find\t\t\t" + KeyStrings.getCode(KeyCode.F, true, false)), new MenuItem("Replace\t\t" + KeyStrings.getCode(KeyCode.N, true, false)));
         bar.getMenus().get(1).getItems().get(0).setOnAction((E) -> {
             undo();
         });
@@ -687,6 +717,12 @@ public class Editor extends BorderPane {
         });
         bar.getMenus().get(1).getItems().get(5).setOnAction((E) -> {
             selectAll();
+        });
+        bar.getMenus().get(1).getItems().get(6).setOnAction((E) -> {
+            find();
+        });
+        bar.getMenus().get(1).getItems().get(7).setOnAction((E) -> {
+            replace();
         });
         bar.getMenus().get(2).getItems().addAll(new MenuItem("Compile"),
                 new MenuItem("Next Instruction"),
@@ -707,6 +743,18 @@ public class Editor extends BorderPane {
         });
         bar.getMenus().get(2).getItems().get(4).setOnAction((E) -> {
             stop();
+        });
+        bar.getMenus().get(3).getItems().addAll(/*new MenuItem("Preferences"),*/new MenuItem("Credits"));
+//        bar.getMenus().get(3).getItems().get(0).setOnAction((e) -> {
+//            Alert
+//        });
+        bar.getMenus().get(3).getItems().get(0).setOnAction((e) -> {
+            Alert al = new Alert(AlertType.INFORMATION);
+            al.initModality(Modality.APPLICATION_MODAL);
+            al.initOwner(getScene().getWindow());
+            al.setTitle("About Y86VM");
+            al.setHeaderText("Y86-64 VM Created by Aniket Joshi (2018)");
+            al.showAndWait();
         });
         return bar;
     }

@@ -6,6 +6,10 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.util.Callback;
 
 /**
@@ -14,9 +18,54 @@ import javafx.util.Callback;
  */
 public class Environment {
 
+    public class Condition {
+
+        private final BooleanProperty state;
+        private final StringProperty name;
+        private final StringProperty stateValue;
+
+        public Condition(boolean a, String name) {
+            state = new SimpleBooleanProperty(a);
+            this.name = new SimpleStringProperty(name);
+            stateValue = new SimpleStringProperty("0");
+            state.addListener((observable, oldValue, newValue) -> {
+                stateValue.set(newValue ? "1" : "0");
+            });
+        }
+
+        public String getName() {
+            return name.get();
+        }
+
+        public void setName(String n) {
+            name.set(n);
+        }
+
+        public String getStateValue() {
+            return stateValue.get();
+        }
+
+        public void setStateValue(String n) {
+            stateValue.set(n);
+        }
+
+        public boolean getState() {
+            return state.get();
+        }
+
+        public void setState(boolean h) {
+            state.set(h);
+        }
+
+    }
+
     private final IntegerProperty counter;
     private final IntegerProperty status;
-    private final BooleanProperty sign, overflow, zero;
+    private final ObservableList<Condition> conditions = FXCollections.observableArrayList(
+            new Condition(false, "Zero Flag"),
+            new Condition(false, "Overflow Flag"),
+            new Condition(false, "Sign Flag"),
+            new Condition(false, "Carry Flag"));
     private boolean overrideBreakpoint = false;
 
     private final Registers register;
@@ -29,9 +78,10 @@ public class Environment {
         memory = new Memory(this, 4096);
         status = new SimpleIntegerProperty(0);
         counter = new SimpleIntegerProperty(0);
-        sign = new SimpleBooleanProperty(false);
-        overflow = new SimpleBooleanProperty(false);
-        zero = new SimpleBooleanProperty(false);
+    }
+
+    public ObservableList<Condition> getCodes() {
+        return conditions;
     }
 
     public void setBreakCall(Callback<Void, Void> v) {
@@ -151,51 +201,71 @@ public class Environment {
         jumpLoc = a;
     }
 
+    private Condition get(int a) {
+        return conditions.get(a);
+    }
+
     public BooleanProperty signProperty() {
-        return sign;
+        return get(2).state;
     }
 
     public BooleanProperty overflowProperty() {
-        return overflow;
+        return get(1).state;
     }
 
     public BooleanProperty zeroProperty() {
-        return zero;
+        return get(0).state;
+    }
+
+    public BooleanProperty carryProperty() {
+        return get(3).state;
+    }
+
+    public int isCarry() {
+        return get(3).getState() ? 1 : 0;
+    }
+
+    public void setCarry(boolean v) {
+        get(3).setState(v);
     }
 
     public int isSign() {
-        return sign.get() ? 1 : 0;
+        return get(2).getState() ? 1 : 0;
     }
 
     public void setSign(boolean s) {
-        sign.set(s);
+        get(2).setState(s);
     }
 
     public int isOverflow() {
-        return overflow.get() ? 1 : 0;
+        return get(1).getState() ? 1 : 0;
     }
 
     public void setOverflow(boolean o) {
-        overflow.set(o);
+        get(1).setState(o);
     }
 
     public int isZero() {
-        return zero.get() ? 1 : 0;
+        return get(0).getState() ? 1 : 0;
     }
 
     public void setZero(boolean z) {
-        zero.set(z);
+        get(0).setState(z);
     }
 
     public boolean overflow() {
-        return overflow.get();
+        return get(1).getState();
     }
 
     public boolean zero() {
-        return zero.get();
+        return get(0).getState();
     }
 
     public boolean sign() {
-        return sign.get();
+        return get(2).getState();
+    }
+
+    public boolean carry() {
+        return get(3).getState();
     }
 }

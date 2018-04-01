@@ -9,3 +9,4 @@ It supports:
 * Display compile-time errors instantly
 * Breakpoint support
 * Additional Mathematical Instructions : multq, divq, modq, sarq, slrq, salq, orq, incq, decq, negq, notq, bangq
+* Carry Flag, Unsigned Jump instructions, Unsigned Conditional Move instructions

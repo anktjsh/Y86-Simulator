@@ -2,7 +2,6 @@ package virtual.machine.execution;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import virtual.machine.internal.Environment;
 import virtual.machine.internal.Memory;
 
@@ -74,6 +73,30 @@ public class Interpreter {
                 break;
             case 0x26:
                 if (environ.sign() == environ.overflow() && environ.zero()) {
+                    move(programCount);
+                }
+                result = 1;
+                break;
+            case 0x27:
+                if (environ.carry()) {
+                    move(programCount);
+                }
+                result = 1;
+                break;
+            case 0x28:
+                if (!environ.carry()) {
+                    move(programCount);
+                }
+                result = 1;
+                break;
+            case 0x29:
+                if (environ.carry() || environ.zero()) {
+                    move(programCount);
+                }
+                result = 1;
+                break;
+            case 0x2A:
+                if (!(environ.carry() || environ.zero())) {
                     move(programCount);
                 }
                 result = 1;
@@ -168,6 +191,30 @@ public class Interpreter {
                 break;
             case 0x76:
                 if (environ.sign() == environ.overflow() && environ.zero()) {
+                    jump(programCount);
+                }
+                result = 8;
+                break;
+            case 0x77:
+                if (environ.carry()) {
+                    jump(programCount);
+                }
+                result = 8;
+                break;
+            case 0x78:
+                if (!environ.carry()) {
+                    jump(programCount);
+                }
+                result = 8;
+                break;
+            case 0x79:
+                if (environ.carry() || environ.zero()) {
+                    jump(programCount);
+                }
+                result = 8;
+                break;
+            case 0x7A:
+                if (!(environ.carry() || environ.zero())) {
                     jump(programCount);
                 }
                 result = 8;
@@ -327,6 +374,8 @@ public class Interpreter {
         long bsign = b >>> 63;
         long lsign;
         boolean overflo = false;
+        boolean carry = false;
+        BigInteger addResult, ao, bo, min, max;
         switch (op) {
             case 0x60:
                 result = b + a;
@@ -334,12 +383,24 @@ public class Interpreter {
                 if (asign == bsign && asign != lsign) {
                     overflo = true;
                 }
+                addResult = new BigInteger(Long.toUnsignedString(result));
+                ao = new BigInteger(Long.toUnsignedString(a));
+                bo = new BigInteger(Long.toUnsignedString(b));
+                if (addResult.compareTo(ao) < 0 || addResult.compareTo(bo) < 0) {
+                    carry = true;
+                }
                 break;
             case 0x61:
                 result = b - a;
                 lsign = result >>> 63;
                 if (asign == lsign && asign != bsign) {
                     overflo = true;
+                }
+                addResult = new BigInteger(Long.toUnsignedString(result));
+                ao = new BigInteger(Long.toUnsignedString(a));
+                bo = new BigInteger(Long.toUnsignedString(b));
+                if (addResult.compareTo(ao) > 0 || addResult.compareTo(bo) > 0) {
+                    carry = true;
                 }
                 break;
             case 0x62:
@@ -351,8 +412,15 @@ public class Interpreter {
             case 0x64:
                 result = b * a;
                 BigInteger mu = BigInteger.valueOf(b).multiply(BigInteger.valueOf(a));
-                if ((mu.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) < 0) || (mu.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0)) {
+                max = BigInteger.valueOf(Long.MAX_VALUE);
+                min = BigInteger.valueOf(Long.MIN_VALUE);
+                if ((mu.compareTo(max) < 0) || (mu.compareTo(min) < 0)) {
                     overflo = true;
+                }
+                max = max.shiftLeft(1).add(BigInteger.ONE);
+                min = min.shiftLeft(1);
+                if ((mu.compareTo(max) < 0) || (mu.compareTo(min) < 0)) {
+                    carry = true;
                 }
                 break;
             case 0x65:
@@ -396,5 +464,6 @@ public class Interpreter {
             environ.setSign(false);
         }
         environ.setOverflow(overflo);
+        environ.setCarry(carry);
     }
 }

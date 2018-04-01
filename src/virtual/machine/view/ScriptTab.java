@@ -1,5 +1,7 @@
 package virtual.machine.view;
 
+import de.jensd.fx.glyphs.materialdesignicons.MaterialDesignIcon;
+import de.jensd.fx.glyphs.materialdesignicons.MaterialDesignIconView;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -16,20 +18,27 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableSet;
 import javafx.collections.SetChangeListener;
 import javafx.event.Event;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextField;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
+import javafx.util.Callback;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
@@ -46,47 +55,49 @@ import virtual.machine.execution.ConcurrentCompiler;
  * @author aniket
  */
 public class ScriptTab extends Tab {
-    
+
     private final CodeArea area;
     private final Script script;
-    
+    private final BorderPane center, bottom;
+
     private final ObservableSet<Integer> breakpoints = FXCollections.observableSet(new HashSet<>());
     private final Pair<Integer, String> errorLines = new Pair<>(-1, "");
     private IntFunction<Node> numberFactory;
     private IntFunction<Node> arrowFactory;
     private IntFunction<Node> breakFactory;
-    
+
     private final IntegerProperty rowPosition;
-    
+
     private static final String[] KEYWORDS = new String[]{
         "jl", "subq", "jge", "cmovge", "jmp", "nop",
         "xorq", "cmovg", "cmove", "andq",
-        "cmovl", "addq", "rrmovq",
+        "cmovl", "addq", "rrmovq", "cmovb", "cmovnb", "cmovbe", "cmova",
+        "ja", "jbe", "jbe", "jnb",
         "irmovq", "jne", "ret", "jle", "rmmovq",
         "cmovne", "cmovle", "call",
         "halt", "popq", "pushq", "mrmovq", "je", "jg",
         "multq", "divq", "modq", "sarq", "shrq", "salq", "orq",
         "incq", "decq", "notq", "negq", "bangq"
     };
-    
+
     private static final String[] DIRECTIVES = new String[]{
         "align", "pos", "quad"
     };
-    
+
     private static final String[] REGISTERS = new String[]{
         "rax", "rcx", "rdx", "rsp", "rbp", "r8", "r9", "r10",
         "r11", "r12", "r13", "r14", "rbx", "rsi", "rdi"
     };
-    
+
     private static final Set<String> CURRENT = new HashSet<>(Compiler.getInstance().getLabels());
-    
+
     private static final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
     private static final String REGISTER_PATTERN = "\\b(" + String.join("|", REGISTERS) + ")\\b";
     private static String LABEL_PATTERN = "\\b(" + String.join("|", CURRENT) + ")\\b";
     private static final String COMMENT_PATTERN = "#[^\n]*";
     private static final String CONSTANT_PATTERN = "\\$";
     private static final String DIRECTIVE_PATTERN = "\\b(" + String.join("|", DIRECTIVES) + ")\\b";
-    
+
     private static Pattern PATTERN = Pattern.compile(
             "(?<KEYWORD>" + KEYWORD_PATTERN + ")"
             + "|(?<DIRECTIVE>" + DIRECTIVE_PATTERN + ")"
@@ -95,11 +106,11 @@ public class ScriptTab extends Tab {
             + "|(?<COMMENT>" + COMMENT_PATTERN + ")"
             + "|(?<CONSTANT>" + CONSTANT_PATTERN + ")"
     );
-    
+
     public ObservableSet<Integer> getBreakpoints() {
         return breakpoints;
     }
-    
+
     private int getRow(int caret) {
         String spl[] = area.getText().split("\n");
         int count = 0;
@@ -113,7 +124,7 @@ public class ScriptTab extends Tab {
         }
         return -1;
     }
-    
+
     public ScriptTab(Script scr) {
         super(scr.getFile().getName());
         script = scr;
@@ -124,9 +135,6 @@ public class ScriptTab extends Tab {
             breakpoints.stream().filter((n) -> (c.getList().size() <= n || c.getList().get(n).getText().isEmpty())).forEachOrdered((n) -> {
                 breakpoints.remove(n);
             });
-        });
-        area.caretPositionProperty().addListener((ob, older, newer) -> {
-            rowPosition.set(getRow(area.getCaretPosition()));
         });
         breakpoints.addListener((SetChangeListener.Change<? extends Integer> c) -> {
             placeFactory();
@@ -193,7 +201,16 @@ public class ScriptTab extends Tab {
             cc.putString(cc.getUrl());
             Clipboard.getSystemClipboard().setContent(cc);
         });
-        setContent(new VirtualizedScrollPane(area));
+        center = new BorderPane();
+        center.setCenter(new VirtualizedScrollPane(area));
+        setContent(center);
+        center.setBottom(bottom = new BorderPane());
+        Label loc = new Label("");
+        bottom.setRight(loc);
+        area.caretPositionProperty().addListener((ob, older, newer) -> {
+            rowPosition.set(getRow(area.getCaretPosition()));
+            loc.setText((rowPosition.get() + 1) + ":" + area.getCaretColumn());
+        });
         initFactory();
         placeFactory();
         area.getStylesheets().add(getClass().getResource("css.css").toExternalForm());
@@ -265,7 +282,7 @@ public class ScriptTab extends Tab {
         });
         breakpoints.addAll(script.getBreakpoints());
     }
-    
+
     private void addBreakpoint() {
         String[] spl = area.getText().split("\n");
         if (rowPosition.get() < spl.length && !spl[rowPosition.get()].trim().isEmpty()) {
@@ -276,60 +293,215 @@ public class ScriptTab extends Tab {
             }
         }
     }
-    
+
     public final void concurrent(String s) {
-        ConcurrentCompiler.compile(s, (Pair<Integer, String> param) -> {
-            if (param != null) {
-                errorLines.setKey(param.getKey());
-                errorLines.setValue(param.getValue());
+        ConcurrentCompiler.compile(s, (Integer p1, String p2) -> {
+            if (p1 != null) {
+                errorLines.setKey(p1);
+                errorLines.setValue(p2);
+                setStyle("-fx-background-color:red;");
             } else {
                 errorLines.setKey(-1);
                 errorLines.setValue("");
+                setStyle("");
             }
             placeFactory();
             return null;
         });
     }
-    
+
     public void undo() {
         area.undo();
     }
-    
+
     public void redo() {
         area.redo();
     }
-    
+
     public void cut() {
         area.cut();
     }
-    
+
     public void copy() {
         area.copy();
     }
-    
+
     public void paste() {
         area.paste();
     }
-    
+
     public void selectAll() {
         area.selectAll();
     }
-    
+
     public Script getScript() {
         return script;
     }
-    
+
+    public void find() {
+        bottom.setTop(getFindBox());
+        ((HBox) getFindBox()).getChildren().get(3).requestFocus();
+    }
+
+    private Node getReplaceBox() {
+        if (replaceBox == null) {
+            replaceBox = createReplaceBox((ab) -> {
+                bottom.setTop(null);
+                return null;
+            });
+        }
+        return replaceBox;
+    }
+
+    private Node findBox;
+    private Node replaceBox;
+
+    private Node getFindBox() {
+        if (findBox == null) {
+            findBox = createFindBox((ab) -> {
+                bottom.setTop(null);
+                return null;
+            });
+        }
+        return findBox;
+    }
+
+    private Node createFindBox(Callback<Void, Void> call) {
+        HBox box = new HBox(15);
+        box.setPadding(new Insets(5, 10, 5, 10));
+        TextField fi;
+        Button prev, next, close;
+        MaterialDesignIconView cl = new MaterialDesignIconView(MaterialDesignIcon.CLOSE);
+        cl.setStyle("-fx-fill:white;");
+        box.getChildren().addAll(fi = new TextField(),
+                prev = new Button("Previous"),
+                next = new Button("Next"),
+                close = new Button("", cl));
+        fi.setPromptText("Find");
+        fi.setOnAction((ea) -> {
+            next.fire();
+        });
+        prev.setOnAction((efd) -> {
+            int start = area.getSelection().getStart();
+            String a = area.getText().substring(0, start);
+            int index = a.lastIndexOf(fi.getText());
+            if (index != -1) {
+                area.selectRange(index, index + fi.getText().length());
+            }
+        });
+        next.setOnAction((sdfsdfsd) -> {
+            if (area.getSelection().getLength() == 0) {
+                String a = fi.getText();
+                int index = area.getText().indexOf(a);
+                if (index != -1) {
+                    area.selectRange(index, index + a.length());
+                }
+            } else {
+                int end = area.getSelection().getEnd();
+                String a = area.getText().substring(end);
+                int index = a.indexOf(fi.getText());
+                if (index != -1) {
+                    index += end;
+                    area.selectRange(index, index + fi.getText().length());
+                }
+            }
+        });
+        close.setOnAction((se) -> {
+            call.call(null);
+        });
+        return box;
+    }
+
+    public void replace() {
+        bottom.setTop(getReplaceBox());
+        ((HBox) ((VBox) ((BorderPane) getReplaceBox()).getCenter()).getChildren().get(0))
+                .getChildren().get(0).requestFocus();
+    }
+
+    private Node createReplaceBox(Callback<Void, Void> call) {
+        VBox total = new VBox();
+        BorderPane border = new BorderPane(total);
+        HBox top = new HBox(15);
+        HBox below = new HBox(5);
+        total.getChildren().addAll(top, below);
+        below.setPadding(new Insets(5, 10, 5, 10));
+        top.setPadding(new Insets(5, 10, 5, 10));
+        TextField fi, replace;
+        Button prev, next, rep, reAll, close;
+        top.getChildren().addAll(fi = new TextField(),
+                prev = new Button("Previous"),
+                next = new Button("Next"));
+        fi.setPromptText("Find");
+        below.getChildren().addAll(replace = new TextField(),
+                rep = new Button("Replace"),
+                reAll = new Button("Replace All"));
+        replace.setPromptText("Replace");
+        fi.setOnAction((ea) -> {
+            next.fire();
+        });
+        replace.setOnAction((es) -> {
+            rep.fire();
+        });
+        prev.setOnAction((efd) -> {
+            int start = area.getSelection().getStart();
+            String a = area.getText().substring(0, start);
+            int index = a.lastIndexOf(fi.getText());
+            if (index != -1) {
+                area.selectRange(index, index + fi.getText().length());
+            }
+        });
+        next.setOnAction((sdfsdfsd) -> {
+            if (area.getSelection().getLength() == 0) {
+                String a = fi.getText();
+                int index = area.getText().indexOf(a);
+                if (index != -1) {
+                    area.selectRange(index, index + a.length());
+                }
+            } else {
+                int end = area.getSelection().getEnd();
+                String a = area.getText().substring(end);
+                int index = a.indexOf(fi.getText());
+                if (index != -1) {
+                    index += end;
+                    area.selectRange(index, index + fi.getText().length());
+                }
+            }
+        });
+        rep.setOnAction((sdfsdfsd) -> {
+            String a = fi.getText();
+            String b = replace.getText();
+            if (area.getText().contains(a)) {
+                int index = area.getText().indexOf(a);
+                area.replaceText(index, index + a.length(), b);
+            }
+        });
+        reAll.setOnAction((efsf) -> {
+            String a = fi.getText();
+            String b = replace.getText();
+            while (area.getText().contains(a)) {
+                int index = area.getText().indexOf(a);
+                area.replaceText(index, index + a.length(), b);
+            }
+        });
+        border.setRight(close = new Button("X"));
+        BorderPane.setMargin(border.getRight(), new Insets(5, 10, 5, 10));
+        close.setOnAction((se) -> {
+            call.call(null);
+        });
+        return border;
+    }
+
     public void save() {
         script.save(area.getText());
         setText(script.getFile().getName());
     }
-    
+
     private void initFactory() {
         numberFactory = LineNumberFactory.get(area);
         arrowFactory = new ErrorFactory(errorLines);
         breakFactory = new BreakPointFactory(breakpoints);
     }
-    
+
     private void placeFactory() {
         area.setParagraphGraphicFactory(
                 line -> {
@@ -338,7 +510,7 @@ public class ScriptTab extends Tab {
                     return hbox;
                 });
     }
-    
+
     private static void refreshPattern() {
         if (!CURRENT.equals(Compiler.getInstance().getLabels())) {
             CURRENT.clear();
@@ -354,7 +526,7 @@ public class ScriptTab extends Tab {
             );
         }
     }
-    
+
     private static StyleSpans<Collection<String>> computeHighlighting(String text) {
         refreshPattern();
         Matcher matcher = PATTERN.matcher(text);

@@ -25,6 +25,10 @@ public class Compiler {
             put("cmovne", (byte) 0x24);
             put("cmovge", (byte) 0x25);
             put("cmovg", (byte) 0x26);
+            put("cmovb", (byte) 0x27);
+            put("cmovnb", (byte) 0x28);
+            put("cmovbe", (byte) 0x29);
+            put("cmova", (byte) 0x2A);
             put("irmovq", (byte) 0x30);
             put("rmmovq", (byte) 0x40);
             put("mrmovq", (byte) 0x50);
@@ -32,7 +36,6 @@ public class Compiler {
             put("subq", (byte) 0x61);
             put("andq", (byte) 0x62);
             put("xorq", (byte) 0x63);
-
             put("multq", (byte) 0x64);
             put("divq", (byte) 0x65);
             put("modq", (byte) 0x66);
@@ -47,6 +50,12 @@ public class Compiler {
             put("jne", (byte) 0x74);
             put("jge", (byte) 0x75);
             put("jg", (byte) 0x76);
+
+            put("jb", (byte) 0x77);
+            put("jnb", (byte) 0x78);
+            put("jbe", (byte) 0x79);
+            put("ja", (byte) 0x7A);
+
             put("call", (byte) 0x80);
             put("ret", (byte) 0x90);
             put("pushq", (byte) 0xA0);
@@ -89,6 +98,12 @@ public class Compiler {
             put("cmovne", (byte) 2);
             put("cmovge", (byte) 2);
             put("cmovg", (byte) 2);
+
+            put("cmovb", (byte) 2);
+            put("cmovnb", (byte) 2);
+            put("cmovbe", (byte) 2);
+            put("cmova", (byte) 2);
+
             put("irmovq", (byte) 10);
             put("rmmovq", (byte) 10);
             put("mrmovq", (byte) 10);
@@ -110,6 +125,12 @@ public class Compiler {
             put("jne", (byte) 9);
             put("jge", (byte) 9);
             put("jg", (byte) 9);
+
+            put("jb", (byte) 9);
+            put("jnb", (byte) 9);
+            put("jbe", (byte) 9);
+            put("ja", (byte) 9);
+
             put("call", (byte) 9);
             put("ret", (byte) 1);
             put("pushq", (byte) 2);
@@ -137,6 +158,9 @@ public class Compiler {
         return lab;
     }
 
+//    public synchronized void compile(String s, TriCallback<Integer, ArrayList<Pair<String, ArrayList<Byte>>>, Void> call) {
+//        
+//    }
     public synchronized ArrayList<Pair<String, ArrayList<Byte>>> compile(String s) throws CompilerException {
         ArrayList<Pair<String, ArrayList<Byte>>> oper = new ArrayList<>();
         long indexPos = 0;
@@ -331,6 +355,12 @@ public class Compiler {
             }
             String offset = s.substring(0, s.indexOf("(")).trim();
             String register = s.substring(s.indexOf("(") + 1, s.indexOf(")"));
+//            register = register.replaceAll(" ", "");
+//            Scanner scan = new Scanner(register);
+//            scan.useDelimiter(",");
+//            while (scan.hasNext()) {
+//                
+//            }
             if (!register.startsWith("%")) {
                 throw new CompilerException(line, "invalid operands");
             }

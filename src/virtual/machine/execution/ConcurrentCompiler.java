@@ -1,7 +1,6 @@
 package virtual.machine.execution;
 
-import javafx.util.Callback;
-import virtual.machine.core.Pair;
+import virtual.machine.core.TriCallback;
 
 /**
  *
@@ -9,12 +8,12 @@ import virtual.machine.core.Pair;
  */
 public class ConcurrentCompiler {
 
-    public static void compile(String in, Callback<Pair<Integer, String>, Void> call) {
+    public static void compile(String in, TriCallback<Integer, String, Void> call) {
         try {
             Compiler.getInstance().compile(in);
-            call.call(null);
+            call.call(null, null);
         } catch (CompilerException e) {
-            call.call(new Pair<>(e.getLine() - 1, e.getMessage()));
+            call.call(e.getLine() - 1, e.getMessage());
         }
     }
 }
