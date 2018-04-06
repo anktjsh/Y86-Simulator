@@ -17,6 +17,7 @@ public class Compiler {
     private final HashMap<String, Byte> mappings = new HashMap<String, Byte>() {
         {
             put("halt", (byte) 0x00);
+            put("brk", (byte) 0x01);
             put("nop", (byte) 0x10);
             put("rrmovq", (byte) 0x20);
             put("cmovle", (byte) 0x21);
@@ -36,7 +37,7 @@ public class Compiler {
             put("subq", (byte) 0x61);
             put("andq", (byte) 0x62);
             put("xorq", (byte) 0x63);
-            put("multq", (byte) 0x64);
+            put("imultq", (byte) 0x64);
             put("divq", (byte) 0x65);
             put("modq", (byte) 0x66);
             put("sarq", (byte) 0x67);
@@ -91,6 +92,7 @@ public class Compiler {
         {
             put("halt", (byte) 1);
             put("nop", (byte) 1);
+            put("brk", (byte) 1);
             put("rrmovq", (byte) 2);
             put("cmovle", (byte) 2);
             put("cmovl", (byte) 2);
@@ -111,7 +113,7 @@ public class Compiler {
             put("subq", (byte) 2);
             put("andq", (byte) 2);
             put("xorq", (byte) 2);
-            put("multq", (byte) 2);
+            put("imultq", (byte) 2);
             put("divq", (byte) 2);
             put("modq", (byte) 2);
             put("sarq", (byte) 2);
@@ -355,12 +357,6 @@ public class Compiler {
             }
             String offset = s.substring(0, s.indexOf("(")).trim();
             String register = s.substring(s.indexOf("(") + 1, s.indexOf(")"));
-//            register = register.replaceAll(" ", "");
-//            Scanner scan = new Scanner(register);
-//            scan.useDelimiter(",");
-//            while (scan.hasNext()) {
-//                
-//            }
             if (!register.startsWith("%")) {
                 throw new CompilerException(line, "invalid operands");
             }
@@ -489,7 +485,6 @@ public class Compiler {
             throw new CompilerException(line, "missing arguments");
         }
         return byt;
-
     }
 
     public static void reverse(byte[] b) {

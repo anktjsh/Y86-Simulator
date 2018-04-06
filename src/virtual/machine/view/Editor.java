@@ -49,6 +49,8 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
@@ -64,7 +66,6 @@ import javafx.stage.Modality;
 import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
-import virtual.machine.core.KeyStrings;
 import virtual.machine.core.Pair;
 import virtual.machine.core.Script;
 import virtual.machine.internal.Environment;
@@ -74,6 +75,8 @@ import virtual.machine.internal.Memory.Data;
 import virtual.machine.internal.Registers.Register;
 import virtual.machine.core.Strings;
 import virtual.machine.internal.Environment.Condition;
+import static virtual.machine.view.ScriptTab.DARK;
+import static virtual.machine.view.ScriptTab.LIGHT;
 
 /**
  *
@@ -117,14 +120,17 @@ public class Editor extends BorderPane {
                 new MaterialDesignIconView(MaterialDesignIcon.FAST_FORWARD),
                 new MaterialDesignIconView(MaterialDesignIcon.REPLAY),
                 new MaterialDesignIconView(MaterialDesignIcon.STOP));
-        ico.stream().map((mid) -> {
-            mid.setSize("2em");
-            return mid;
-        }).map((mid) -> {
-            mid.setStyle("-fx-fill:white;");
-            return mid;
-        }).forEachOrdered((mid) -> {
-            icons.getItems().add(new Button("", mid));
+        String style = Preferences.getDarkTheme() ? "-fx-fill:white;" : "";
+        for (MaterialDesignIconView ic : ico) {
+            ic.setSize("2em");
+            ic.setStyle(style);
+            icons.getItems().add(new Button("", ic));
+        }
+        Preferences.darkTheme().addListener((ob, older, newer) -> {
+            String st = newer ? "-fx-fill:white;" : "";
+            for (MaterialDesignIconView ic : ico) {
+                ic.setStyle(st);
+            }
         });
         icons.getItems().add(2, new Separator(Orientation.VERTICAL));
         icons.getItems().add(5, new Separator(Orientation.VERTICAL));
@@ -183,6 +189,17 @@ public class Editor extends BorderPane {
         setCenter(center = new BorderPane());
         center.setCenter(pane);
         object = new CodeArea();
+        
+        object.setStyle((Preferences.getDarkTheme() ? "-fx-background-color:rgb(50, 50, 50);" : ""));
+        Preferences.darkTheme().addListener((ob, older, neweR) -> {
+            Platform.runLater(() -> {
+                object.setStyle((neweR ? "-fx-background-color:rgb(50, 50, 50);" : ""));
+                object.getStylesheets().remove((older ? DARK : LIGHT));
+                object.getStylesheets().add(neweR ? DARK : LIGHT);
+            });
+        });
+        object.getStylesheets().add(Preferences.getDarkTheme() ? DARK : LIGHT);
+        
         object.setEditable(false);
         virtual = new VirtualizedScrollPane(object);
         CursorFactory cursor = new CursorFactory(counterLine);
@@ -193,10 +210,10 @@ public class Editor extends BorderPane {
         BorderPane.setMargin(object, new Insets(5));
         readScripts();
         if (pane.getTabs().isEmpty()) {
-            File file = new File("assembly/files", "function.s");
+            File file = new File("assembly/files", "function.ys");
             int count = 1;
             while (file.exists()) {
-                file = new File("assembly/files", "function" + count + ".s");
+                file = new File("assembly/files", "function" + count + ".ys");
                 count++;
             }
             pane.getTabs().addAll(new ScriptTab(new Script(file,
@@ -219,29 +236,11 @@ public class Editor extends BorderPane {
                         case N:
                             newFile();
                             break;
-                        case Z:
-                            undo();
-                            break;
-                        case Y:
-                            redo();
-                            break;
-                        case X:
-                            cut();
-                            break;
-                        case C:
-                            copy();
-                            break;
-                        case V:
-                            paste();
-                            break;
                         case F:
                             find();
                             break;
                         case R:
                             replace();
-                            break;
-                        case A:
-                            selectAll();
                             break;
                         default:
                             break;
@@ -380,7 +379,6 @@ public class Editor extends BorderPane {
                     } else if (eb.equals(run)) {
                         environment.override();
                         run();
-                    } else {
                     }
                 });
             });
@@ -408,7 +406,7 @@ public class Editor extends BorderPane {
             if (db.hasFiles()) {
                 success = true;
                 String filePath = null;
-                db.getFiles().stream().filter((file) -> (file.getName().endsWith(".s"))).forEachOrdered((file) -> {
+                db.getFiles().stream().filter((file) -> (file.getName().endsWith(".ys"))).forEachOrdered((file) -> {
                     loadFile(file);
                 });
             }
@@ -566,22 +564,21 @@ public class Editor extends BorderPane {
         getSelectedTab().ifPresent((ef) -> {
             try {
                 ArrayList<Pair<String, ArrayList<Byte>>> interpret = Compiler.getInstance().compile(ef.getScript().getCurrentCode());
+                ArrayList<Byte> all = new ArrayList<>();
                 int loc = 0;
-                ObservableSet<Integer> breakp = FXCollections.observableSet();
                 ObservableSet<Integer> actualBreakpoints = FXCollections.observableSet(new HashSet<>());
-                getSelectedTab().ifPresent((efa) -> {
-                    breakp.addAll(efa.getBreakpoints());
-                });
                 int line = 0;
                 object.replaceText("");
                 for (Pair<String, ArrayList<Byte>> p : interpret) {
                     object.appendText(Strings.getHex(loc, 4) + "\t");
                     String value = "";
                     boolean notAllZeros = false;
-                    if (breakp.contains(line)) {
-                        actualBreakpoints.add(loc);
-                    }
                     for (Byte b : p.getValue()) {
+                        if (b == 0x01 && p.getKey().trim().equals("brk")) {
+                            actualBreakpoints.add(loc);
+                        } else {
+                            all.add(b);
+                        }
                         value += Strings.getHexMinusPrefix(b & 0xFF, 2);
                         environment.getMemory().putByte(loc, b);
                         if (b != 0) {
@@ -613,8 +610,25 @@ public class Editor extends BorderPane {
                 memory.refresh();
                 environment.reset();
                 fadingNotification(pane, "Compilation Successful");
+                /**
+                 * save .yo file
+                 */
+                File obj = new File(ef.getScript().getFile().getParentFile(), ef.getScript().getFile().getName().substring(0, ef.getScript().getFile().getName().indexOf(".")) + ".yo");
+                for (int x = all.size() - 1; x >= 0; x--) {
+                    if (all.get(x) == 0) {
+                        all.remove(x);
+                    }
+                }
+                byte[] arr = new byte[all.size()];
+                for (int x = 0; x < arr.length; x++) {
+                    arr[x] = all.get(x);
+                }
+                try {
+                    Files.write(obj.toPath(), arr);
+                } catch (IOException ex) {
+                }
             } catch (CompilerException ex) {
-                fadingNotification(pane, "Compilation Failed\n" + ex.getMessage());
+                fadingNotification(pane, "Compilation Failed");
             }
         });
     }
@@ -634,7 +648,7 @@ public class Editor extends BorderPane {
         FileChooser fc = new FileChooser();
         fc.setTitle("Files");
         fc.setInitialDirectory(new File("assembly", "files"));
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly File", "*.s"));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly File", "*.ys"));
         File open = fc.showOpenDialog(getScene().getWindow());
         if (open != null) {
             loadFile(open);
@@ -664,14 +678,15 @@ public class Editor extends BorderPane {
         tid.setTitle("File Name");
         tid.setHeaderText("Enter Filename");
         tid.showAndWait().ifPresent((ef) -> {
-            if (ef.endsWith(".s")) {
-                ef = ef + ".s";
+            if (!ef.endsWith(".ys")) {
+                ef = ef + ".ys";
             }
             File f = new File("assembly", "files");
             File fa = new File(f, ef);
             try {
                 Files.createFile(fa.toPath());
                 pane.getTabs().add(new ScriptTab(new Script(fa, "")));
+                pane.getSelectionModel().select(pane.getTabs().get(pane.getTabs().size() - 1));
             } catch (IOException ex) {
             }
         });
@@ -680,10 +695,10 @@ public class Editor extends BorderPane {
     private MenuBar build() {
         MenuBar bar = new MenuBar();
         bar.getMenus().addAll(new Menu("File"), new Menu("Edit"),
-                new Menu("Run"), new Menu("About"));
-        bar.getMenus().get(0).getItems().addAll(new MenuItem("New File\t\t\t" + KeyStrings.getCode(KeyCode.N, true, false)),
-                new MenuItem("Open File\t\t" + KeyStrings.getCode(KeyCode.O, true, false)),
-                new MenuItem("Save\t\t\t" + KeyStrings.getCode(KeyCode.S, true, false)), new MenuItem("Save All\t\t" + KeyStrings.getCode(KeyCode.S, true, true)));
+                new Menu("Run"));
+        bar.getMenus().get(0).getItems().addAll(new MenuItem("New File"),
+                new MenuItem("Open File"),
+                new MenuItem("Save"), new MenuItem("Save All"));
         bar.getMenus().get(0).getItems().get(0).setOnAction((e) -> {
             newFile();
         });
@@ -696,10 +711,10 @@ public class Editor extends BorderPane {
         bar.getMenus().get(0).getItems().get(3).setOnAction((e) -> {
             saveAll();
         });
-        bar.getMenus().get(1).getItems().addAll(new MenuItem("Undo\t\t" + KeyStrings.getCode(KeyCode.Z, true, false)),
-                new MenuItem("Redo\t\t" + KeyStrings.getCode(KeyCode.Y, true, false)), new MenuItem("Cut\t\t\t" + KeyStrings.getCode(KeyCode.X, true, false)), new MenuItem("Copy\t\t" + KeyStrings.getCode(KeyCode.C, true, false)),
-                new MenuItem("Paste\t\t" + KeyStrings.getCode(KeyCode.V, true, false)), new MenuItem("Select All\t" + KeyStrings.getCode(KeyCode.A, true, false)),
-                new MenuItem("Find\t\t\t" + KeyStrings.getCode(KeyCode.F, true, false)), new MenuItem("Replace\t\t" + KeyStrings.getCode(KeyCode.N, true, false)));
+        bar.getMenus().get(1).getItems().addAll(new MenuItem("Undo"),
+                new MenuItem("Redo"), new MenuItem("Cut"), new MenuItem("Copy"),
+                new MenuItem("Paste"), new MenuItem("Select All"),
+                new MenuItem("Find"), new MenuItem("Replace"));
         bar.getMenus().get(1).getItems().get(0).setOnAction((E) -> {
             undo();
         });
@@ -711,9 +726,6 @@ public class Editor extends BorderPane {
         });
         bar.getMenus().get(1).getItems().get(3).setOnAction((E) -> {
             copy();
-        });
-        bar.getMenus().get(1).getItems().get(4).setOnAction((E) -> {
-            paste();
         });
         bar.getMenus().get(1).getItems().get(5).setOnAction((E) -> {
             selectAll();
@@ -744,18 +756,18 @@ public class Editor extends BorderPane {
         bar.getMenus().get(2).getItems().get(4).setOnAction((E) -> {
             stop();
         });
-        bar.getMenus().get(3).getItems().addAll(/*new MenuItem("Preferences"),*/new MenuItem("Credits"));
-//        bar.getMenus().get(3).getItems().get(0).setOnAction((e) -> {
-//            Alert
-//        });
-        bar.getMenus().get(3).getItems().get(0).setOnAction((e) -> {
-            Alert al = new Alert(AlertType.INFORMATION);
-            al.initModality(Modality.APPLICATION_MODAL);
-            al.initOwner(getScene().getWindow());
-            al.setTitle("About Y86VM");
-            al.setHeaderText("Y86-64 VM Created by Aniket Joshi (2018)");
-            al.showAndWait();
-        });
+        bar.getMenus().get(0).getItems().get(0).setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.META_DOWN));
+        bar.getMenus().get(0).getItems().get(1).setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.META_DOWN));
+        bar.getMenus().get(0).getItems().get(2).setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.META_DOWN));
+        bar.getMenus().get(0).getItems().get(3).setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.META_DOWN, KeyCombination.SHIFT_DOWN));
+        bar.getMenus().get(1).getItems().get(0).setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.META_DOWN));
+        bar.getMenus().get(1).getItems().get(1).setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.META_DOWN));
+        bar.getMenus().get(1).getItems().get(2).setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.META_DOWN));
+        bar.getMenus().get(1).getItems().get(3).setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.META_DOWN));
+        bar.getMenus().get(1).getItems().get(4).setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.META_DOWN));
+        bar.getMenus().get(1).getItems().get(5).setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.META_DOWN));
+        bar.getMenus().get(1).getItems().get(6).setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.META_DOWN));
+        bar.getMenus().get(1).getItems().get(7).setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.META_DOWN));
         return bar;
     }
 

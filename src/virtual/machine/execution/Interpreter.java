@@ -40,6 +40,7 @@ public class Interpreter {
                 environ.setStatus(1);
                 break;
             case 0x10:
+            case 0x01:
                 break;
             case 0x21:
                 if (environ.zero() || (environ.overflow() != environ.sign())) {
@@ -72,7 +73,7 @@ public class Interpreter {
                 result = 1;
                 break;
             case 0x26:
-                if (environ.sign() == environ.overflow() && environ.zero()) {
+                if (environ.sign() == environ.overflow() && !environ.zero()) {
                     move(programCount);
                 }
                 result = 1;
@@ -117,7 +118,7 @@ public class Interpreter {
                 break;
             case 0x40:
                 regs = environ.getMemory().getByte(programCount);
-                long val = environ.getRegister().getValueFromRegister(regs >>> 4);
+                long val = environ.getRegister().getValueFromRegister((regs >>> 4) & 0xF);
                 buff = ByteBuffer.allocate(Long.BYTES);
                 for (temp = programCount + 1; temp < programCount + 9; temp++) {
                     buff.put(memory.getByte((int) temp));
@@ -133,7 +134,7 @@ public class Interpreter {
                     buff.put(memory.getByte((int) temp));
                 }
                 buff.flip();
-                long r = environ.getRegister().getValueFromRegister(regs >>> 4) + reverse(buff).getLong();
+                long r = environ.getRegister().getValueFromRegister((regs >>> 4) & 0xF) + reverse(buff).getLong();
                 getFromMemory(regs & 0xF, (int) r);
                 result = 9;
                 break;
@@ -190,7 +191,7 @@ public class Interpreter {
                 result = 8;
                 break;
             case 0x76:
-                if (environ.sign() == environ.overflow() && environ.zero()) {
+                if (environ.sign() == environ.overflow() && !environ.zero()) {
                     jump(programCount);
                 }
                 result = 8;
@@ -239,13 +240,13 @@ public class Interpreter {
                 environ.setJumpLocation(reverse(buff).getLong());
                 break;
             case (byte) 0xA0:
-                if (!pushToStack(environ.getRegister().getValueFromRegister(memory.getByte(programCount) >>> 4))) {
+                if (!pushToStack(environ.getRegister().getValueFromRegister((memory.getByte(programCount) >>> 4) & 0xF))) {
                     environ.setStatus(3);
                 }
                 result = 1;
                 break;
             case (byte) 0xB0:
-                popFromStack(memory.getByte(programCount) >>> 4);
+                popFromStack((memory.getByte(programCount) >>> 4) & 0xF);
                 result = 1;
                 break;
             case (byte) 0xC0:
@@ -253,7 +254,7 @@ public class Interpreter {
             case (byte) 0xC2:
             case (byte) 0xC3:
             case (byte) 0xC4:
-                singleOp(a, (byte) (memory.getByte(programCount) >>> 4));
+                singleOp(a, (byte) ((memory.getByte(programCount) >>> 4) & 0xF));
                 break;
             default:
                 environ.setStatus(3);

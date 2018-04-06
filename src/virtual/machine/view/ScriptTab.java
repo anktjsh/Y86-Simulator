@@ -6,17 +6,13 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.function.IntFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableSet;
-import javafx.collections.SetChangeListener;
 import javafx.event.Event;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -41,8 +37,6 @@ import javafx.stage.Modality;
 import javafx.util.Callback;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.LineNumberFactory;
-import org.fxmisc.richtext.model.Paragraph;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 import virtual.machine.core.Pair;
@@ -56,15 +50,15 @@ import virtual.machine.execution.ConcurrentCompiler;
  */
 public class ScriptTab extends Tab {
 
+    public static final String LIGHT = ScriptTab.class.getResource("light_css.css").toExternalForm(),
+            DARK = ScriptTab.class.getResource("dark_css.css").toExternalForm();
     private final CodeArea area;
     private final Script script;
     private final BorderPane center, bottom;
 
-    private final ObservableSet<Integer> breakpoints = FXCollections.observableSet(new HashSet<>());
     private final Pair<Integer, String> errorLines = new Pair<>(-1, "");
     private IntFunction<Node> numberFactory;
     private IntFunction<Node> arrowFactory;
-    private IntFunction<Node> breakFactory;
 
     private final IntegerProperty rowPosition;
 
@@ -76,12 +70,12 @@ public class ScriptTab extends Tab {
         "irmovq", "jne", "ret", "jle", "rmmovq",
         "cmovne", "cmovle", "call",
         "halt", "popq", "pushq", "mrmovq", "je", "jg",
-        "multq", "divq", "modq", "sarq", "shrq", "salq", "orq",
+        "imultq", "divq", "modq", "sarq", "shrq", "salq", "orq",
         "incq", "decq", "notq", "negq", "bangq"
     };
 
     private static final String[] DIRECTIVES = new String[]{
-        "align", "pos", "quad"
+        "align", "pos", "quad", "brk"
     };
 
     private static final String[] REGISTERS = new String[]{
@@ -107,10 +101,6 @@ public class ScriptTab extends Tab {
             + "|(?<CONSTANT>" + CONSTANT_PATTERN + ")"
     );
 
-    public ObservableSet<Integer> getBreakpoints() {
-        return breakpoints;
-    }
-
     private int getRow(int caret) {
         String spl[] = area.getText().split("\n");
         int count = 0;
@@ -130,17 +120,29 @@ public class ScriptTab extends Tab {
         script = scr;
         rowPosition = new SimpleIntegerProperty();
         area = new CodeArea();
-        area.getParagraphs().addListener((ListChangeListener.Change<? extends Paragraph<Collection<String>, String, Collection<String>>> c) -> {
-            c.next();
-            breakpoints.stream().filter((n) -> (c.getList().size() <= n || c.getList().get(n).getText().isEmpty())).forEachOrdered((n) -> {
-                breakpoints.remove(n);
+        area.setStyle("-fx-font-size:" + Preferences.getFontSize() + ";"
+                + "-fx-font-family:" + Preferences.getFontName() + ";");
+        Preferences.fontSize().addListener((ob, older, neweR) -> {
+            Platform.runLater(() -> {
+                area.setStyle("-fx-font-size:" + neweR.intValue() + ";"
+                        + "-fx-font-family:" + Preferences.getFontName() + ";");
+                placeFactory();
             });
         });
-        breakpoints.addListener((SetChangeListener.Change<? extends Integer> c) -> {
-            placeFactory();
-            script.saveBreakpoints(breakpoints);
+        Preferences.darkTheme().addListener((ob, older, neweR) -> {
+            Platform.runLater(() -> {
+                area.getStylesheets().remove((older ? DARK : LIGHT));
+                area.getStylesheets().add(neweR ? DARK : LIGHT);
+                placeFactory();
+            });
         });
-        area.setStyle("-fx-font-size:15;-fx-font-weight:bold;");
+        Preferences.fontName().addListener((ob, older, newer) -> {
+            Platform.runLater(() -> {
+                area.setStyle("-fx-font-size:" + Preferences.getFontSize() + ";"
+                        + "-fx-font-family:" + newer + ";");
+            });
+        });
+        area.getStylesheets().add(Preferences.getDarkTheme() ? DARK : LIGHT);
         setOnCloseRequest((e) -> {
             if (getText().endsWith("*")) {
                 Alert al = new Alert(Alert.AlertType.CONFIRMATION);
@@ -213,7 +215,6 @@ public class ScriptTab extends Tab {
         });
         initFactory();
         placeFactory();
-        area.getStylesheets().add(getClass().getResource("css.css").toExternalForm());
         area.richChanges()
                 .filter(ch -> !ch.getInserted().equals(ch.getRemoved()))
                 .successionEnds(Duration.ofMillis(100))
@@ -243,9 +244,7 @@ public class ScriptTab extends Tab {
                 new MenuItem("Cut"),
                 new MenuItem("Copy"),
                 new MenuItem("Paste"),
-                new MenuItem("Select All"),
-                new MenuItem("Insert Breakpoint"),
-                new MenuItem("Remove Breakpoint"));
+                new MenuItem("Select All"));
         area.getContextMenu().getItems().get(0).setOnAction((e) -> {
             undo();
         });
@@ -264,12 +263,6 @@ public class ScriptTab extends Tab {
         area.getContextMenu().getItems().get(5).setOnAction((E) -> {
             selectAll();
         });
-        area.getContextMenu().getItems().get(6).setOnAction((e) -> {
-            addBreakpoint();
-        });
-        area.getContextMenu().getItems().get(7).setOnAction((e) -> {
-            breakpoints.remove(rowPosition.get());
-        });
         area.setOnKeyPressed((e) -> {
             if (e.getCode() == KeyCode.ENTER) {
                 area.deleteText(area.getSelection());
@@ -280,18 +273,6 @@ public class ScriptTab extends Tab {
                 }
             }
         });
-        breakpoints.addAll(script.getBreakpoints());
-    }
-
-    private void addBreakpoint() {
-        String[] spl = area.getText().split("\n");
-        if (rowPosition.get() < spl.length && !spl[rowPosition.get()].trim().isEmpty()) {
-            Scanner sc = new Scanner(spl[rowPosition.get()]);
-            String word = sc.next();
-            if (!word.endsWith(":") && !word.startsWith(".")) {
-                breakpoints.add(rowPosition.get());
-            }
-        }
     }
 
     public final void concurrent(String s) {
@@ -372,7 +353,13 @@ public class ScriptTab extends Tab {
         TextField fi;
         Button prev, next, close;
         MaterialDesignIconView cl = new MaterialDesignIconView(MaterialDesignIcon.CLOSE);
-        cl.setStyle("-fx-fill:white;");
+        if (Preferences.getDarkTheme()) {
+            cl.setStyle("-fx-fill:white;");
+        }
+        Preferences.darkTheme().addListener((ob, older, newer) -> {
+            String style = newer ? "-fx-fill:white;" : "";
+            cl.setStyle(style);
+        });
         box.getChildren().addAll(fi = new TextField(),
                 prev = new Button("Previous"),
                 next = new Button("Next"),
@@ -483,7 +470,15 @@ public class ScriptTab extends Tab {
                 area.replaceText(index, index + a.length(), b);
             }
         });
-        border.setRight(close = new Button("X"));
+        MaterialDesignIconView cl = new MaterialDesignIconView(MaterialDesignIcon.CLOSE);
+        if (Preferences.getDarkTheme()) {
+            cl.setStyle("-fx-fill:white;");
+        }
+        Preferences.darkTheme().addListener((ob, older, newer) -> {
+            String style = newer ? "-fx-fill:white;" : "";
+            cl.setStyle(style);
+        });
+        border.setRight(close = new Button("", cl));
         BorderPane.setMargin(border.getRight(), new Insets(5, 10, 5, 10));
         close.setOnAction((se) -> {
             call.call(null);
@@ -499,13 +494,12 @@ public class ScriptTab extends Tab {
     private void initFactory() {
         numberFactory = LineNumberFactory.get(area);
         arrowFactory = new ErrorFactory(errorLines);
-        breakFactory = new BreakPointFactory(breakpoints);
     }
 
     private void placeFactory() {
         area.setParagraphGraphicFactory(
                 line -> {
-                    HBox hbox = new HBox(5, numberFactory.apply(line), breakFactory.apply(line), arrowFactory.apply(line));
+                    HBox hbox = new HBox(5, numberFactory.apply(line), arrowFactory.apply(line));
                     hbox.setAlignment(Pos.CENTER_LEFT);
                     return hbox;
                 });

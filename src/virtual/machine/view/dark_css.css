@@ -1,0 +1,39 @@
+.text {
+    -fx-fill: whitesmoke;
+}
+
+.code-area { 
+    -fx-font-weight:bold;
+    -fx-background-color:rgb(50, 50, 50);
+}
+
+.keyword {
+    -fx-fill: lavender;
+}
+
+.comment {
+    -fx-fill: cadetblue;
+}
+
+.register {
+    -fx-fill:lightblue;
+}
+
+.hex{
+    -fx-fill:lightgreen;
+}
+
+.label {
+    -fx-fill:orange;
+}
+
+.directive{
+    -fx-fill:pink;
+}
+
+.paragraph-box:has-caret {
+    -fx-background-color: rgb(50, 50, 50);
+}
+.caret {
+    -fx-stroke: red;
+}

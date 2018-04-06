@@ -1,15 +1,10 @@
 package virtual.machine.core;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.Scanner;
-import javafx.collections.ObservableSet;
 
 /**
  *
@@ -92,34 +87,6 @@ public class Script {
         hash = 97 * hash + Objects.hashCode(this.file);
         hash = 97 * hash + Objects.hashCode(this.lastCode);
         return hash;
-    }
-
-    public void saveBreakpoints(ObservableSet<Integer> breakpoints) {
-        StringBuilder sb = new StringBuilder();
-        File f = new File(file.getParentFile(), file.getName().substring(0, file.getName().length() - 2) + "-breakpoints");
-        breakpoints.forEach((n) -> {
-            sb.append(n).append(" ");
-        });
-        try {
-            Files.write(f.toPath(), sb.toString().getBytes());
-        } catch (IOException ex) {
-        }
-    }
-
-    public Collection<Integer> getBreakpoints() {
-        ArrayList<Integer> al = new ArrayList<>();
-        try {
-            File f = new File(file.getParentFile(), file.getName().substring(0, file.getName().length() - 2) + "-breakpoints");
-            Scanner in = new Scanner(f);
-            if (in.hasNextLine()) {
-                Scanner read = new Scanner(in.nextLine());
-                while (read.hasNextInt()) {
-                    al.add(read.nextInt());
-                }
-            }
-        } catch (FileNotFoundException ex) {
-        }
-        return al;
     }
 
 }

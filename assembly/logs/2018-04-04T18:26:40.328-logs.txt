@@ -1,0 +1,13 @@
+java.lang.IllegalStateException: Location is not set.
+	at javafx.fxml.FXMLLoader.loadImpl(FXMLLoader.java:2434)
+	at javafx.fxml.FXMLLoader.load(FXMLLoader.java:2409)
+	at de.codecentric.centerdevice.dialogs.about.AboutStageBuilder.prepareStage(AboutStageBuilder.java:44)
+	at de.codecentric.centerdevice.dialogs.about.AboutStageBuilder.build(AboutStageBuilder.java:35)
+	at de.codecentric.centerdevice.MenuToolkit.createDefaultAboutStage(MenuToolkit.java:92)
+	at de.codecentric.centerdevice.MenuToolkit.createDefaultApplicationMenu(MenuToolkit.java:67)
+	at virtual.machine.Y86VM.setAppleSpecificFeatures(Y86VM.java:182)
+	at virtual.machine.Y86VM.lambda$null$3(Y86VM.java:117)
+	at com.sun.javafx.application.PlatformImpl.lambda$null$173(PlatformImpl.java:295)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at com.sun.javafx.application.PlatformImpl.lambda$runLater$174(PlatformImpl.java:294)
+	at com.sun.glass.ui.InvokeLaterDispatcher$Future.run(InvokeLaterDispatcher.java:95)
