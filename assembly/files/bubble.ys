@@ -8,16 +8,35 @@ data:
   	.quad 0x0000000000000004
   	.quad 0x0000000000000003
   	.quad 0x0000000000000002
-data_end:
-  	.quad 0x0000000000000001
+  	.quad 0x0000000000000007
+	.quad 0x0000000000000008
+	.quad 0x0000000000000006
+	.quad 0x0000000000000003
+	.quad 0x0000000000000002
+	.quad 0x0000000000000009
+	.quad 0x0000000000000000
+	.quad 0x0000000000000002
 Main:
   	irmovq data,%rdi
-    	irmovq data_end,%rsi
+    	irmovq $11,%rsi
     	call ysBubbleP
     	ret
 # long ys_bubble_p(long *data, long *end)
 # data in %rdi, end in %rsi
 ysBubbleP:
+	irmovq $1, %r8
+	subq %r8, %rsi
+	irmovq $8, %r9
+	irmovq $0, %r10
+addLoop:
+	andq %rsi, %rsi
+	je init
+	addq %r9, %r10
+	subq %r8, %rsi
+	jmp addLoop
+init:
+	rrmovq %r10, %rsi
+	addq %rdi, %rsi
 	jmp L2
  L4:
   	mrmovq 8(%rax), %r9

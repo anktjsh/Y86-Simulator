@@ -14,21 +14,27 @@ import javafx.application.Preloader.StateChangeNotification;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -53,7 +59,7 @@ public class Y86VM extends Application {
             protected Void call() throws Exception {
                 int max = 10;
                 for (int i = 1; i <= max; i++) {
-                    Thread.sleep(300);
+                    Thread.sleep(250);
                     notifyPreloader(new ProgressNotification(((double) i) / max));
                 }
                 ready.setValue(Boolean.TRUE);
@@ -118,9 +124,62 @@ public class Y86VM extends Application {
                         setAppleSpecificFeatures(stage);
                     }
                     stage.show();
+                    showPref(stage);
                 });
             }
         });
+    }
+
+    private void showPref(Stage stage) {
+        File sett = new File("assembly", "settings.txt");
+        if (!sett.exists()) {
+            Platform.runLater(() -> {
+                Stage dir = new Stage();
+                dir.setTitle("File Directory");
+                dir.initOwner(stage);
+                dir.initModality(Modality.APPLICATION_MODAL);
+                dir.setResizable(false);
+                dir.setScene(buildScene(dir));
+                if (Preferences.getDarkTheme()) {
+                    dir.getScene().getStylesheets().add(CSS);
+                }
+                dir.setOnCloseRequest((E) -> E.consume());
+                dir.showAndWait();
+            });
+        }
+    }
+
+    private Scene buildScene(Stage stage) {
+        BorderPane root = new BorderPane();
+        VBox controls = new VBox(15);
+        controls.setPadding(new Insets(25));
+        controls.setAlignment(Pos.CENTER);
+        root.setCenter(controls);
+        Button choose, defau, confirm;
+        TextField dir;
+        controls.getChildren().addAll(
+                choose = new Button("Select File Directory"),
+                dir = new TextField(),
+                defau = new Button("Select Default Directory"),
+                confirm = new Button("Confirm"));
+        confirm.setDefaultButton(true);
+        dir.setEditable(false);
+        choose.setOnAction((e) -> {
+            DirectoryChooser dc = new DirectoryChooser();
+            dc.setTitle("Select File Directory");
+            File show = dc.showDialog(stage);
+            if (show != null) {
+                dir.setText(show.getAbsolutePath());
+            }
+        });
+        defau.setOnAction((e) -> {
+            dir.setText(Preferences.getFileDirectory());
+        });
+        confirm.setOnAction((E) -> {
+            Preferences.setFileDirectory(dir.getText());
+            stage.close();
+        });
+        return new Scene(root, 400, 270);
     }
 
     private void launchVM(Stage currentStage) {
@@ -200,7 +259,8 @@ public class Y86VM extends Application {
             al.setTitle("About Y86VM");
             al.setHeaderText("Y86-64 VM Created by Aniket Joshi (2018)");
             al.setContentText("Y86-64 VM supports all standard Y86-64 operations with additional single operand and double operand mathematical functions, breakpoints,"
-                    + " as well as the Carry Flag and all associated jumps and conditional moves for unsigned operations.");
+                    + " as well as the Carry Flag and all associated jumps and conditional moves for unsigned operations.\n\n"
+                    + "Y86-64 VM was written in Java with the help of JavaFx, RichTextFx, NSMenuFx, and FontAwesomeFx");
             al.showAndWait();
         });
         defaultApplicationMenu.getItems().get(0).setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCodeCombination.META_DOWN));

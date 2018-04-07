@@ -1,1 +1,1 @@
-/Users/aniket/NetBeansProjects/Y86VM/store/assembly/files/function.s
+/Users/aniket/NetBeansProjects/Y86VM/store/assembly/files/function.ys

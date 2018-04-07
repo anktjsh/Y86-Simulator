@@ -121,16 +121,20 @@ public class Editor extends BorderPane {
                 new MaterialDesignIconView(MaterialDesignIcon.REPLAY),
                 new MaterialDesignIconView(MaterialDesignIcon.STOP));
         String style = Preferences.getDarkTheme() ? "-fx-fill:white;" : "";
-        for (MaterialDesignIconView ic : ico) {
+        ico.stream().map((ic) -> {
             ic.setSize("2em");
+            return ic;
+        }).map((ic) -> {
             ic.setStyle(style);
+            return ic;
+        }).forEachOrdered((ic) -> {
             icons.getItems().add(new Button("", ic));
-        }
+        });
         Preferences.darkTheme().addListener((ob, older, newer) -> {
             String st = newer ? "-fx-fill:white;" : "";
-            for (MaterialDesignIconView ic : ico) {
+            ico.forEach((ic) -> {
                 ic.setStyle(st);
-            }
+            });
         });
         icons.getItems().add(2, new Separator(Orientation.VERTICAL));
         icons.getItems().add(5, new Separator(Orientation.VERTICAL));
@@ -189,7 +193,6 @@ public class Editor extends BorderPane {
         setCenter(center = new BorderPane());
         center.setCenter(pane);
         object = new CodeArea();
-        
         object.setStyle((Preferences.getDarkTheme() ? "-fx-background-color:rgb(50, 50, 50);" : ""));
         Preferences.darkTheme().addListener((ob, older, neweR) -> {
             Platform.runLater(() -> {
@@ -199,7 +202,7 @@ public class Editor extends BorderPane {
             });
         });
         object.getStylesheets().add(Preferences.getDarkTheme() ? DARK : LIGHT);
-        
+
         object.setEditable(false);
         virtual = new VirtualizedScrollPane(object);
         CursorFactory cursor = new CursorFactory(counterLine);
@@ -210,14 +213,11 @@ public class Editor extends BorderPane {
         BorderPane.setMargin(object, new Insets(5));
         readScripts();
         if (pane.getTabs().isEmpty()) {
-            File file = new File("assembly/files", "function.ys");
-            int count = 1;
-            while (file.exists()) {
-                file = new File("assembly/files", "function" + count + ".ys");
-                count++;
+            File file = new File(Preferences.getFileDirectory(), "function.ys");
+            if (!file.exists()) {
+                pane.getTabs().addAll(new ScriptTab(new Script(file,
+                        DEFAULT_STRING)));
             }
-            pane.getTabs().addAll(new ScriptTab(new Script(file,
-                    DEFAULT_STRING)));
         }
         setOnKeyPressed((e) -> {
             if (e.isControlDown() || e.isMetaDown()) {
@@ -438,7 +438,7 @@ public class Editor extends BorderPane {
         try {
             File config = new File("assembly/config.txt");
             List<String> read = Files.readAllLines(config.toPath());
-            File f = new File("assembly", "files");
+            File f = new File(Preferences.getFileDirectory());
             if (!f.exists()) {
                 f.mkdirs();
             }
@@ -647,7 +647,7 @@ public class Editor extends BorderPane {
     public void openFile() {
         FileChooser fc = new FileChooser();
         fc.setTitle("Files");
-        fc.setInitialDirectory(new File("assembly", "files"));
+        fc.setInitialDirectory(new File(Preferences.getFileDirectory()));
         fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly File", "*.ys"));
         File open = fc.showOpenDialog(getScene().getWindow());
         if (open != null) {
@@ -681,7 +681,7 @@ public class Editor extends BorderPane {
             if (!ef.endsWith(".ys")) {
                 ef = ef + ".ys";
             }
-            File f = new File("assembly", "files");
+            File f = new File(Preferences.getFileDirectory());
             File fa = new File(f, ef);
             try {
                 Files.createFile(fa.toPath());

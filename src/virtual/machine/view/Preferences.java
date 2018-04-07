@@ -15,6 +15,7 @@ import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -22,11 +23,13 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import static virtual.machine.Y86VM.CSS;
@@ -36,18 +39,20 @@ import static virtual.machine.Y86VM.CSS;
  * @author aniket
  */
 public class Preferences extends Stage {
-    
+
     private static final BooleanProperty DARK_THEME = new SimpleBooleanProperty(false);
     private static final IntegerProperty FONT_SIZE = new SimpleIntegerProperty(13);
     private static final StringProperty FONT_NAME = new SimpleStringProperty("System Regular");
-    
+    private static final StringProperty FILE_DIRECTORY = new SimpleStringProperty(new File("").getAbsolutePath() + "/assembly/files");
+
     static {
         DARK_THEME.addListener((ob, older, newer) -> write());
         FONT_SIZE.addListener((ob, older, newer) -> write());
         FONT_NAME.addListener((ob, older, newer) -> write());
+        FILE_DIRECTORY.addListener((ob, older, newer) -> write());
         read();
     }
-    
+
     static void read() {
         File f = new File("assembly", "settings.txt");
         if (f.exists()) {
@@ -68,27 +73,42 @@ public class Preferences extends Stage {
                         FONT_NAME.set(s);
                     }
                 }
+                if (in.hasNextLine()) {
+                    String s = in.nextLine();
+                    File fa = new File(s);
+                    if (fa.exists() && fa.isDirectory()) {
+                        FILE_DIRECTORY.set(s);
+                    }
+                }
             } catch (FileNotFoundException ex) {
             }
         }
-        
+
     }
-    
+
     static void write() {
         File f = new File("assembly", "settings.txt");
         if (!f.getParentFile().exists()) {
             f.mkdirs();
         }
         try {
-            Files.write(f.toPath(), FXCollections.observableArrayList(DARK_THEME.get() + "", FONT_SIZE.intValue() + "", FONT_NAME.get()));
+            Files.write(f.toPath(), FXCollections.observableArrayList(DARK_THEME.get() + "", FONT_SIZE.intValue() + "", FONT_NAME.get(),
+                    FILE_DIRECTORY.get()));
         } catch (IOException ex) {
         }
     }
-    
+
+    public static void setFileDirectory(String text) {
+        FILE_DIRECTORY.set(text);
+        write();
+    }
+
     private ToggleButton darkOption;
     private Spinner<Integer> fontOption;
     private ComboBox<String> font;
-    
+    private Button choose;
+    private TextField dir;
+
     public Preferences(Stage stage) {
         initOwner(stage);
         stage.setTitle("Preferences");
@@ -106,7 +126,7 @@ public class Preferences extends Stage {
             }
         });
     }
-    
+
     private Scene buildScene() {
         TabPane tabs = new TabPane();
         BorderPane root = new BorderPane();
@@ -117,18 +137,33 @@ public class Preferences extends Stage {
         controls.setPadding(new Insets(25));
         controls.setAlignment(Pos.CENTER);
         root.setCenter(controls);
-        controls.getChildren().addAll(darkOption = new ToggleButton("Dark Theme"),
+        controls.getChildren().addAll(
+                choose = new Button("Select File Directory"),
+                dir = new TextField(getFileDirectory()),
+                darkOption = new ToggleButton("Dark Theme"),
                 new Label("Font Size"),
                 fontOption = new Spinner<>(5, 50, getFontSize(), 1),
                 new Label("Font"),
                 font = new ComboBox<>(FXCollections.observableArrayList(Font.getFamilies())));
         font.setValue(FONT_NAME.get());
         darkOption.setSelected(getDarkTheme());
+        FILE_DIRECTORY.bind(dir.textProperty());
         DARK_THEME.bind(darkOption.selectedProperty());
         FONT_SIZE.bind(fontOption.valueProperty());
         FONT_NAME.bind(font.valueProperty());
+        dir.setEditable(false);
+        choose.setOnAction((e) -> {
+            DirectoryChooser dc = new DirectoryChooser();
+            dc.setInitialDirectory(new File(getFileDirectory()));
+            dc.setTitle("Select File Directory");
+            File show = dc.showDialog(this);
+            if (show != null) {
+                dir.setText(show.getAbsolutePath());
+            }
+        });
         TableView<Instruction> table = new TableView<>();
         ext.setCenter(table);
+        ext.setPadding(new Insets(5));
         TableColumn<Instruction, String> ins = new TableColumn<>("Instruction");
         TableColumn<Instruction, String> opr = new TableColumn<>("Implementation");
         ins.setCellValueFactory(new PropertyValueFactory<>("firstName"));
@@ -158,69 +193,77 @@ public class Preferences extends Stage {
                 new Instruction("incq", "Increment"),
                 new Instruction("decq", "Decrement"),
                 new Instruction("bangq", "1 if input is 0, 0 otherwise"));
-        for (Tab b : tabs.getTabs()) {
+        tabs.getTabs().forEach((b) -> {
             b.setClosable(false);
-        }
-        return new Scene(tabs, 400, 270);
+        });
+        return new Scene(tabs, 400, 400);
     }
-    
+
     public class Instruction {
-        
+
         private final StringProperty firstName;
-        
+
         public void setFirstName(String value) {
             firstNameProperty().set(value);
         }
-        
+
         public String getFirstName() {
             return firstNameProperty().get();
         }
-        
+
         public StringProperty firstNameProperty() {
             return firstName;
         }
-        
+
         private final StringProperty lastName;
-        
+
         public void setLastName(String value) {
             lastNameProperty().set(value);
         }
-        
+
         public String getLastName() {
             return lastNameProperty().get();
         }
-        
+
         public StringProperty lastNameProperty() {
             return lastName;
         }
-        
+
         public Instruction(String a, String b) {
             firstName = new SimpleStringProperty(a);
             lastName = new SimpleStringProperty(b);
         }
     }
-    
+
     public static boolean getDarkTheme() {
         return DARK_THEME.get();
     }
-    
+
     public static int getFontSize() {
         return FONT_SIZE.get();
     }
-    
+
     public static IntegerProperty fontSize() {
         return FONT_SIZE;
     }
-    
+
     public static BooleanProperty darkTheme() {
         return DARK_THEME;
     }
-    
+
     public static StringProperty fontName() {
         return FONT_NAME;
     }
-    
+
     public static String getFontName() {
         return FONT_NAME.get();
+    }
+
+    public static StringProperty fileDirectory() {
+        return FILE_DIRECTORY;
+    }
+
+    public static String getFileDirectory() {
+        return FILE_DIRECTORY.get();
     }
 }
