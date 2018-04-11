@@ -63,6 +63,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
@@ -788,6 +789,25 @@ public class Editor extends BorderPane {
         bar.getMenus().get(1).getItems().get(5).setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN));
         bar.getMenus().get(1).getItems().get(6).setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         bar.getMenus().get(1).getItems().get(7).setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
+        if (!System.getProperty("os.name").toLowerCase().contains("mac")) {
+            Preferences pref = new Preferences((Stage)getScene().getWindow());
+            bar.getMenus().get(0).getItems().addAll(new MenuItem("Preferences"),
+                    new MenuItem("About"));
+            bar.getMenus().get(0).getItems().get(5).setOnAction((e) -> {
+                pref.showAndWait();
+            });
+            bar.getMenus().get(0).getItems().get(6).setOnAction((e) -> {
+                Alert al = new Alert(AlertType.INFORMATION);
+                al.initModality(Modality.APPLICATION_MODAL);
+                al.initOwner(getScene().getWindow());
+                al.setTitle("About Y86VM");
+                al.setHeaderText("Y86-64 VM Created by Aniket Joshi (2018)");
+                al.setContentText("Y86-64 VM supports all standard Y86-64 operations with additional single operand and double operand mathematical functions, breakpoints,"
+                        + " as well as the Carry Flag and all associated jumps and conditional moves for unsigned operations.\n\n"
+                        + "Y86-64 VM was written in Java with the help of JavaFx, RichTextFx, NSMenuFx, and FontAwesomeFx");
+                al.showAndWait();
+            });
+        }
         return bar;
     }
 

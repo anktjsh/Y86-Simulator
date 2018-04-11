@@ -201,6 +201,8 @@ public class Y86VM extends Application {
         if (System.getProperty("os.name").toLowerCase().contains("mac")) {
             currentStage.setFullScreenExitHint("");
             currentStage.setFullScreen(true);
+        } else {
+            currentStage.setMaximized(true);
         }
         currentStage.setOnCloseRequest((e) -> {
             closeRequest(currentStage, e);
