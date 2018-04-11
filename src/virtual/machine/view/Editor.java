@@ -220,7 +220,7 @@ public class Editor extends BorderPane {
             }
         }
         setOnKeyPressed((e) -> {
-            if (e.isControlDown() || e.isMetaDown()) {
+            if (e.isShortcutDown()) {
                 if (null != e.getCode()) {
                     switch (e.getCode()) {
                         case S:
@@ -407,7 +407,7 @@ public class Editor extends BorderPane {
                 success = true;
                 String filePath = null;
                 db.getFiles().stream().filter((file) -> (file.getName().endsWith(".ys"))).forEachOrdered((file) -> {
-                    loadFile(file);
+                    readFile(file);
                 });
             }
             event.setDropCompleted(success);
@@ -614,11 +614,6 @@ public class Editor extends BorderPane {
                  * save .yo file
                  */
                 File obj = new File(ef.getScript().getFile().getParentFile(), ef.getScript().getFile().getName().substring(0, ef.getScript().getFile().getName().indexOf(".")) + ".yo");
-                for (int x = all.size() - 1; x >= 0; x--) {
-                    if (all.get(x) == 0) {
-                        all.remove(x);
-                    }
-                }
                 byte[] arr = new byte[all.size()];
                 for (int x = 0; x < arr.length; x++) {
                     arr[x] = all.get(x);
@@ -651,11 +646,31 @@ public class Editor extends BorderPane {
         fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly File", "*.ys"));
         File open = fc.showOpenDialog(getScene().getWindow());
         if (open != null) {
-            loadFile(open);
+            readFile(open);
         }
     }
 
-    private void loadFile(File open) {
+    public void loadFile() {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Files");
+        fc.setInitialDirectory(new File(Preferences.getFileDirectory()));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly File", "*.yo"));
+        File open = fc.showOpenDialog(getScene().getWindow());
+        if (open != null) {
+            try {
+                byte[] read = Files.readAllBytes(open.toPath());
+                for (int x = 0; x < read.length; x++) {
+                    environment.getMemory().putByte(x, read[x]);
+                }
+                runnable.set(true);
+                memory.refresh();
+                environment.reset();
+            } catch (IOException ex) {
+            }
+        }
+    }
+
+    private void readFile(File open) {
         Script sca = new Script(open, "");
         boolean go = true;
         for (Tab b : pane.getTabs()) {
@@ -698,6 +713,7 @@ public class Editor extends BorderPane {
                 new Menu("Run"));
         bar.getMenus().get(0).getItems().addAll(new MenuItem("New File"),
                 new MenuItem("Open File"),
+                new MenuItem("Load Object File"),
                 new MenuItem("Save"), new MenuItem("Save All"));
         bar.getMenus().get(0).getItems().get(0).setOnAction((e) -> {
             newFile();
@@ -705,10 +721,13 @@ public class Editor extends BorderPane {
         bar.getMenus().get(0).getItems().get(1).setOnAction((ActionEvent e) -> {
             openFile();
         });
-        bar.getMenus().get(0).getItems().get(2).setOnAction((e) -> {
-            save();
+        bar.getMenus().get(0).getItems().get(2).setOnAction((ActionEvent e) -> {
+            loadFile();
         });
         bar.getMenus().get(0).getItems().get(3).setOnAction((e) -> {
+            save();
+        });
+        bar.getMenus().get(0).getItems().get(4).setOnAction((e) -> {
             saveAll();
         });
         bar.getMenus().get(1).getItems().addAll(new MenuItem("Undo"),
@@ -756,18 +775,19 @@ public class Editor extends BorderPane {
         bar.getMenus().get(2).getItems().get(4).setOnAction((E) -> {
             stop();
         });
-        bar.getMenus().get(0).getItems().get(0).setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.META_DOWN));
-        bar.getMenus().get(0).getItems().get(1).setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.META_DOWN));
-        bar.getMenus().get(0).getItems().get(2).setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.META_DOWN));
-        bar.getMenus().get(0).getItems().get(3).setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.META_DOWN, KeyCombination.SHIFT_DOWN));
-        bar.getMenus().get(1).getItems().get(0).setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.META_DOWN));
-        bar.getMenus().get(1).getItems().get(1).setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.META_DOWN));
-        bar.getMenus().get(1).getItems().get(2).setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.META_DOWN));
-        bar.getMenus().get(1).getItems().get(3).setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.META_DOWN));
-        bar.getMenus().get(1).getItems().get(4).setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.META_DOWN));
-        bar.getMenus().get(1).getItems().get(5).setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.META_DOWN));
-        bar.getMenus().get(1).getItems().get(6).setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.META_DOWN));
-        bar.getMenus().get(1).getItems().get(7).setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.META_DOWN));
+        bar.getMenus().get(0).getItems().get(0).setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(0).getItems().get(1).setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(0).getItems().get(2).setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        bar.getMenus().get(0).getItems().get(3).setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(0).getItems().get(4).setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        bar.getMenus().get(1).getItems().get(0).setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(1).getItems().get(1).setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(1).getItems().get(2).setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(1).getItems().get(3).setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(1).getItems().get(4).setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(1).getItems().get(5).setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(1).getItems().get(6).setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
+        bar.getMenus().get(1).getItems().get(7).setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
         return bar;
     }
 

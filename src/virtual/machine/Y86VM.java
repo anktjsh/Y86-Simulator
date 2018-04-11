@@ -47,12 +47,12 @@ import virtual.machine.view.Preferences;
  * @author aniket
  */
 public class Y86VM extends Application {
-
+    
     public static final String CSS = Y86VM.class.getResource("material.css").toExternalForm();
     public static final Image ICON = new Image(Y86VM.class.getResourceAsStream("icon.png"));
-
+    
     BooleanProperty ready = new SimpleBooleanProperty(false);
-
+    
     private void longStart() {
         Task task = new Task<Void>() {
             @Override
@@ -70,7 +70,7 @@ public class Y86VM extends Application {
         };
         new Thread(task).start();
     }
-
+    
     @Override
     public void start(Stage stage) {
         longStart();
@@ -103,7 +103,8 @@ public class Y86VM extends Application {
                 if (!f.exists()) {
                     f.mkdirs();
                 }
-                File save = new File(f, LocalDateTime.now().toString() + "-logs.txt");
+                File save = new File(f, LocalDateTime.now().toString().replaceAll(":", "-")
+                        .replaceAll("\\.", "-") + "-logs.txt");
                 try {
                     Files.write(save.toPath(), sw.toString().getBytes());
                 } catch (IOException ex) {
@@ -129,7 +130,7 @@ public class Y86VM extends Application {
             }
         });
     }
-
+    
     private void showPref(Stage stage) {
         File sett = new File("assembly", "settings.txt");
         if (!sett.exists()) {
@@ -148,7 +149,7 @@ public class Y86VM extends Application {
             });
         }
     }
-
+    
     private Scene buildScene(Stage stage) {
         BorderPane root = new BorderPane();
         VBox controls = new VBox(15);
@@ -181,7 +182,7 @@ public class Y86VM extends Application {
         });
         return new Scene(root, 400, 270);
     }
-
+    
     private void launchVM(Stage currentStage) {
         currentStage.getIcons().add(Y86VM.ICON);
         Environment environ = new Environment();
@@ -197,13 +198,15 @@ public class Y86VM extends Application {
                 currentStage.getScene().getStylesheets().remove(CSS);
             }
         });
-        currentStage.setFullScreenExitHint("");
-        currentStage.setFullScreen(true);
+        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+            currentStage.setFullScreenExitHint("");
+            currentStage.setFullScreen(true);
+        }
         currentStage.setOnCloseRequest((e) -> {
             closeRequest(currentStage, e);
         });
     }
-
+    
     private void closeRequest(Stage currentStage, WindowEvent e) {
         Editor ed = (Editor) currentStage.getScene().getRoot();
         TabPane tabs = (TabPane) ((BorderPane) ed.getCenter()).getCenter();
@@ -235,19 +238,19 @@ public class Y86VM extends Application {
             hideFullScreen(currentStage);
         }
     }
-
+    
     private void hideFullScreen(Stage stage) {
         if (stage.isFullScreen()) {
             stage.setFullScreen(false);
         }
     }
-
+    
     public static void main(String[] args) {
         launch(args);
     }
-
+    
     private Preferences pref;
-
+    
     private void setAppleSpecificFeatures(Stage stage) {
         MenuToolkit tk = MenuToolkit.toolkit();
         Menu defaultApplicationMenu = tk.createDefaultApplicationMenu("Y86-64 VM");
@@ -271,5 +274,5 @@ public class Y86VM extends Application {
             pref.showAndWait();
         });
     }
-
+    
 }

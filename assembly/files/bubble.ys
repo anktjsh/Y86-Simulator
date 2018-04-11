@@ -18,7 +18,7 @@ data:
 	.quad 0x0000000000000002
 Main:
   	irmovq data,%rdi
-    	irmovq $11,%rsi
+    	irmovq $11, %rsi
     	call ysBubbleP
     	ret
 # long ys_bubble_p(long *data, long *end)

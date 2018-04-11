@@ -78,19 +78,14 @@ public class ScriptTab extends Tab {
         "align", "pos", "quad", "brk"
     };
 
-    private static final String[] REGISTERS = new String[]{
-        "rax", "rcx", "rdx", "rsp", "rbp", "r8", "r9", "r10",
-        "r11", "r12", "r13", "r14", "rbx", "rsi", "rdi"
-    };
-
     private static final Set<String> CURRENT = new HashSet<>(Compiler.getInstance().getLabels());
 
     private static final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
-    private static final String REGISTER_PATTERN = "\\b(" + String.join("|", REGISTERS) + ")\\b";
+    private static final String REGISTER_PATTERN = "%[^\\n]{2,3}\\b";
     private static String LABEL_PATTERN = "\\b(" + String.join("|", CURRENT) + ")\\b";
     private static final String COMMENT_PATTERN = "#[^\n]*";
-    private static final String CONSTANT_PATTERN = "\\$";
-    private static final String DIRECTIVE_PATTERN = "\\b(" + String.join("|", DIRECTIVES) + ")\\b";
+    private static final String CONSTANT_PATTERN = "\\$([^,]+)";
+    private static final String DIRECTIVE_PATTERN = "\\b(" + String.join("|", DIRECTIVES) + ")\\b[^\\n]*";
 
     private static Pattern PATTERN = Pattern.compile(
             "(?<KEYWORD>" + KEYWORD_PATTERN + ")"
