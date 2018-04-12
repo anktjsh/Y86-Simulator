@@ -32,6 +32,7 @@ import javafx.scene.text.Font;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import virtual.machine.Y86VM;
 import static virtual.machine.Y86VM.CSS;
 
 /**
@@ -111,13 +112,14 @@ public class Preferences extends Stage {
 
     public Preferences(Stage stage) {
         initOwner(stage);
-        stage.setTitle("Preferences");
+        setTitle("Preferences");
         initModality(Modality.APPLICATION_MODAL);
         setScene(buildScene());
         setResizable(false);
         if (Preferences.getDarkTheme()) {
             getScene().getStylesheets().add(CSS);
         }
+        getIcons().add(Y86VM.ICON);
         Preferences.darkTheme().addListener((ob, older, newer) -> {
             if (newer) {
                 getScene().getStylesheets().add(CSS);
