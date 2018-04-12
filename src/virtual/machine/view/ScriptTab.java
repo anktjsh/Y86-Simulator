@@ -18,6 +18,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
@@ -34,11 +35,13 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Callback;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
+import static virtual.machine.Y86VM.ICON;
 import virtual.machine.core.Pair;
 import virtual.machine.core.Script;
 import virtual.machine.execution.Compiler;
@@ -140,7 +143,8 @@ public class ScriptTab extends Tab {
         area.getStylesheets().add(Preferences.getDarkTheme() ? DARK : LIGHT);
         setOnCloseRequest((e) -> {
             if (getText().endsWith("*")) {
-                Alert al = new Alert(Alert.AlertType.CONFIRMATION);
+                Alert al = new Alert(AlertType.CONFIRMATION);
+                ((Stage) al.getDialogPane().getScene().getWindow()).getIcons().add(ICON);
                 al.initModality(Modality.APPLICATION_MODAL);
                 al.initOwner(getTabPane().getScene().getWindow());
                 al.setHeaderText("Would you like to save before closing?");

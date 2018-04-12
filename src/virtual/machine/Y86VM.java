@@ -16,6 +16,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -82,6 +83,7 @@ public class Y86VM extends Application {
                 alert.setTitle("An error has occurred");
                 alert.setHeaderText("An unsafe exception was caught");
                 alert.setContentText("A log of this error has been stored");
+                ((Stage) alert.getDialogPane().getScene().getWindow()).getIcons().add(ICON);
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
                 e.printStackTrace(pw);
@@ -221,6 +223,7 @@ public class Y86VM extends Application {
         ed.saveScripts();
         if (option) {
             Alert al = new Alert(AlertType.CONFIRMATION);
+            ((Stage) al.getDialogPane().getScene().getWindow()).getIcons().add(ICON);
             al.setHeaderText("Would you like to save before closing?");
             al.setTitle("Close");
             al.initOwner(currentStage);
@@ -259,6 +262,7 @@ public class Y86VM extends Application {
         tk.setApplicationMenu(defaultApplicationMenu);
         defaultApplicationMenu.getItems().get(2).setOnAction((e) -> {
             Alert al = new Alert(AlertType.INFORMATION);
+            ((Stage) al.getDialogPane().getScene().getWindow()).getIcons().add(ICON);
             al.initModality(Modality.APPLICATION_MODAL);
             al.initOwner(stage);
             al.setTitle("About Y86VM");

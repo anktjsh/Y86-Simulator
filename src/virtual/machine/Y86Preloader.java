@@ -49,6 +49,7 @@ public class Y86Preloader extends Preloader {
     @Override
     public void start(Stage stage) throws Exception {
         this.stage = stage;
+        stage.getIcons().add(Y86VM.ICON);
         stage.initStyle(StageStyle.UNDECORATED);
         stage.setScene(createPreloaderScene());
         stage.getScene().getStylesheets().add(CSS);

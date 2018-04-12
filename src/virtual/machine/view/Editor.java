@@ -67,6 +67,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
+import static virtual.machine.Y86VM.ICON;
 import virtual.machine.core.Pair;
 import virtual.machine.core.Script;
 import virtual.machine.internal.Environment;
@@ -365,6 +366,7 @@ public class Editor extends BorderPane {
         environment.setBreakCall((param) -> {
             Platform.runLater(() -> {
                 Alert al = new Alert(AlertType.INFORMATION);
+                ((Stage) al.getDialogPane().getScene().getWindow()).getIcons().add(ICON);
                 al.initOwner(getScene().getWindow());
                 al.initModality(Modality.APPLICATION_MODAL);
                 al.setHeaderText("A breakpoint has been encountered");
@@ -689,6 +691,7 @@ public class Editor extends BorderPane {
 
     public void newFile() {
         TextInputDialog tid = new TextInputDialog("assembly");
+        ((Stage) tid.getDialogPane().getScene().getWindow()).getIcons().add(ICON);
         tid.initOwner(getScene().getWindow());
         tid.initModality(Modality.APPLICATION_MODAL);
         tid.setTitle("File Name");
@@ -790,14 +793,17 @@ public class Editor extends BorderPane {
         bar.getMenus().get(1).getItems().get(6).setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         bar.getMenus().get(1).getItems().get(7).setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
         if (!System.getProperty("os.name").toLowerCase().contains("mac")) {
-            Preferences pref = new Preferences((Stage)getScene().getWindow());
             bar.getMenus().get(0).getItems().addAll(new MenuItem("Preferences"),
                     new MenuItem("About"));
             bar.getMenus().get(0).getItems().get(5).setOnAction((e) -> {
+                if (pref == null) {
+                    pref = new Preferences((Stage) getScene().getWindow());
+                }
                 pref.showAndWait();
             });
             bar.getMenus().get(0).getItems().get(6).setOnAction((e) -> {
                 Alert al = new Alert(AlertType.INFORMATION);
+                ((Stage) al.getDialogPane().getScene().getWindow()).getIcons().add(ICON);
                 al.initModality(Modality.APPLICATION_MODAL);
                 al.initOwner(getScene().getWindow());
                 al.setTitle("About Y86VM");
@@ -810,6 +816,8 @@ public class Editor extends BorderPane {
         }
         return bar;
     }
+
+    private Preferences pref;
 
     public static void fadingNotification(Node node, String message) {
         Font font = Font.font("Verdana", FontWeight.NORMAL, 20);
