@@ -10,3 +10,4 @@ It supports:
 * Breakpoint support
 * Additional Mathematical Instructions : multq, divq, modq, sarq, slrq, salq, orq, incq, decq, negq, notq, bangq
 * Carry Flag, Unsigned Jump instructions, Unsigned Conditional Move instructions
+* Console and 6 new instructions for input and output : getc, getq, gets, outc, outq, outs
