@@ -12,9 +12,7 @@ import java.util.Optional;
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableSet;
@@ -65,8 +63,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.fxmisc.richtext.CodeArea;
 import static virtual.machine.Y86VM.ICON;
 import virtual.machine.core.Pair;
 import virtual.machine.core.Script;
@@ -77,8 +73,6 @@ import virtual.machine.internal.Memory.Data;
 import virtual.machine.internal.Registers.Register;
 import virtual.machine.core.Strings;
 import virtual.machine.internal.Environment.Condition;
-import static virtual.machine.view.ScriptTab.DARK;
-import static virtual.machine.view.ScriptTab.LIGHT;
 
 /**
  *
@@ -90,15 +84,13 @@ public class Editor extends BorderPane {
             + "Main:\n\n\tret\n\n\n\t.pos 0x100\nStack:\n\n\n\n\n";
     private final TabPane pane;
     private final BorderPane center;
-    private final VirtualizedScrollPane virtual;
-    private final BorderPane top, left;
+    private final BorderPane top, left, bottom;
     private final ToolBar icons;
     private final TableView<Data> memory;
     private final TableView<Register> registers;
     private final Environment environment;
-    private final CodeArea object;
-    private final IntegerProperty counterLine = new SimpleIntegerProperty(0);
     private final BooleanProperty runnable = new SimpleBooleanProperty(false);
+    private Terminal term;
     private final ObservableSet<Integer> breakpoints = FXCollections.observableSet(new HashSet<>());
 
     public Editor(Environment environ) {
@@ -106,6 +98,14 @@ public class Editor extends BorderPane {
         MenuBar bar = build();
         bar.setUseSystemMenuBar(true);
         pane = new TabPane();
+        pane.getSelectionModel().selectedItemProperty().addListener((ob, older, newer) -> {
+            if (runnable.get()) {
+                reset();
+                if (older instanceof ScriptTab) {
+                    ((ScriptTab) older).reset();
+                }
+            }
+        });
         top = new BorderPane();
         setTop(top);
         top.setCenter(bar);
@@ -132,11 +132,14 @@ public class Editor extends BorderPane {
         }).forEachOrdered((ic) -> {
             icons.getItems().add(new Button("", ic));
         });
+        MaterialDesignIconView cons = new MaterialDesignIconView(MaterialDesignIcon.CONSOLE);
+        cons.setStyle(style);
         Preferences.darkTheme().addListener((ob, older, newer) -> {
             String st = newer ? "-fx-fill:white;" : "";
             ico.forEach((ic) -> {
                 ic.setStyle(st);
             });
+            cons.setStyle(st);
         });
         icons.getItems().add(2, new Separator(Orientation.VERTICAL));
         icons.getItems().add(5, new Separator(Orientation.VERTICAL));
@@ -194,62 +197,15 @@ public class Editor extends BorderPane {
         registers = new TableView<>();
         setCenter(center = new BorderPane());
         center.setCenter(pane);
-        object = new CodeArea();
-        object.setStyle((Preferences.getDarkTheme() ? "-fx-background-color:rgb(50, 50, 50);" : ""));
-        Preferences.darkTheme().addListener((ob, older, neweR) -> {
-            Platform.runLater(() -> {
-                object.setStyle((neweR ? "-fx-background-color:rgb(50, 50, 50);" : ""));
-                object.getStylesheets().remove((older ? DARK : LIGHT));
-                object.getStylesheets().add(neweR ? DARK : LIGHT);
-            });
-        });
-        object.getStylesheets().add(Preferences.getDarkTheme() ? DARK : LIGHT);
-
-        object.setEditable(false);
-        virtual = new VirtualizedScrollPane(object);
-        CursorFactory cursor = new CursorFactory(counterLine);
-        object.setParagraphGraphicFactory((line) -> {
-            return cursor.apply(line);
-        });
         BorderPane.setMargin(pane, new Insets(5));
-        BorderPane.setMargin(object, new Insets(5));
         readScripts();
         if (pane.getTabs().isEmpty()) {
             File file = new File(Preferences.getFileDirectory(), "function.ys");
             if (!file.exists()) {
                 pane.getTabs().addAll(new ScriptTab(new Script(file,
-                        DEFAULT_STRING)));
+                        DEFAULT_STRING), environ));
             }
         }
-        setOnKeyPressed((e) -> {
-            if (e.isShortcutDown()) {
-                if (null != e.getCode()) {
-                    switch (e.getCode()) {
-                        case S:
-                            if (e.isShiftDown()) {
-                                saveAll();
-                            } else {
-                                save();
-                            }
-                            break;
-                        case O:
-                            openFile();
-                            break;
-                        case N:
-                            newFile();
-                            break;
-                        case F:
-                            find();
-                            break;
-                        case R:
-                            replace();
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-        });
         /**
          * left column all memory
          */
@@ -357,11 +313,11 @@ public class Editor extends BorderPane {
             codes.refresh();
         });
         environment.status().addListener((ob, older, newer) -> {
-            st.setText("Status : " + environment.getStatus());
+            Platform.runLater(() -> st.setText("Status : " + environment.getStatus()));
         });
         environment.counter().addListener((ob, older, newer) -> {
-            pc.setText("Program Counter : " + Strings.getHex(environment.programCounter(), 4));
-            alignCounter(newer.intValue());
+            Platform.runLater(()
+                    -> pc.setText("Program Counter : " + Strings.getHex(environment.programCounter(), 4)));
         });
         environment.setBreakCall((param) -> {
             Platform.runLater(() -> {
@@ -387,11 +343,6 @@ public class Editor extends BorderPane {
             });
             return null;
         });
-        counterLine.addListener((ob, older, newer) -> {
-            object.setParagraphGraphicFactory((line) -> {
-                return cursor.apply(line);
-            });
-        });
         right.getChildren().add(registers);
         right.getChildren().add(new Label("Condition Codes"));
         right.getChildren().add(codes);
@@ -416,25 +367,21 @@ public class Editor extends BorderPane {
             event.setDropCompleted(success);
             event.consume();
         });
-
-    }
-
-    private void alignCounter(int newValue) {
-        if (center.getBottom() != null) {
-            int num = 0;
-            boolean found = false;
-            for (int x = 0; x < object.getParagraphs().size(); x++) {
-                if (object.getParagraphs().get(x).getText().startsWith(Strings.getHex(newValue, 4))) {
-                    found = true;
-                    num = x;
-                } else {
-                    if (found) {
-                        break;
-                    }
-                }
+        bottom = new BorderPane();
+        center.setBottom(bottom);
+        Button console = new Button("Console", cons);
+        BorderPane.setMargin(bottom, new Insets(5));
+        BorderPane.setAlignment(bottom, Pos.CENTER_LEFT);
+        bottom.setTop(console);
+        term = new Terminal(environ);
+        console.setOnAction((E) -> {
+            if (bottom.getCenter() == null) {
+                bottom.setCenter(term);
+            } else {
+                bottom.setCenter(null);
             }
-            counterLine.set(num);
-        }
+        });
+        bottom.setCenter(term);
     }
 
     private void readScripts() {
@@ -446,8 +393,9 @@ public class Editor extends BorderPane {
                 f.mkdirs();
             }
             read.forEach((s) -> {
-                pane.getTabs().add(new ScriptTab(new Script(new File(s), "")));
+                pane.getTabs().add(new ScriptTab(new Script(new File(s), ""), environment));
             });
+            pane.getSelectionModel().select(pane.getTabs().get(pane.getTabs().size() - 1));
         } catch (IOException ex) {
         }
     }
@@ -538,7 +486,7 @@ public class Editor extends BorderPane {
             environment.nextInstruction((param) -> {
                 refresh();
                 return null;
-            }, breakpoints);
+            }, breakpoints, false);
         }
     }
 
@@ -571,9 +519,9 @@ public class Editor extends BorderPane {
                 int loc = 0;
                 ObservableSet<Integer> actualBreakpoints = FXCollections.observableSet(new HashSet<>());
                 int line = 0;
-                object.replaceText("");
+                StringBuilder sb = new StringBuilder();
                 for (Pair<String, ArrayList<Byte>> p : interpret) {
-                    object.appendText(Strings.getHex(loc, 4) + "\t");
+                    sb.append(Strings.getHex(loc, 4)).append("\t");
                     String value = "";
                     boolean notAllZeros = false;
                     for (Byte b : p.getValue()) {
@@ -598,24 +546,19 @@ public class Editor extends BorderPane {
                     }
                     breakpoints.clear();
                     breakpoints.addAll(actualBreakpoints);
-                    object.appendText(value);
-                    object.appendText("\t|\t");
+                    sb.append(value);
+                    sb.append("\t|\t");
                     if (!p.getKey().endsWith(":")) {
-                        object.appendText("\t");
+                        sb.append("\t");
                     }
-                    object.appendText(p.getKey() + "\n");
+                    sb.append(p.getKey()).append("\n");
                     line++;
                 }
-                virtual.setMinHeight(getScene().getHeight() / 2);
-                center.setBottom(virtual);
-                alignCounter(0);
+                ef.setObjectText(sb.toString());
+                ef.alignCounter(0);
                 runnable.set(true);
                 memory.refresh();
-                environment.reset();
                 fadingNotification(pane, "Compilation Successful");
-                /**
-                 * save .yo file
-                 */
                 File obj = new File(ef.getScript().getFile().getParentFile(), ef.getScript().getFile().getName().substring(0, ef.getScript().getFile().getName().indexOf(".")) + ".yo");
                 byte[] arr = new byte[all.size()];
                 for (int x = 0; x < arr.length; x++) {
@@ -636,10 +579,11 @@ public class Editor extends BorderPane {
         environment.getMemory().reset();
         refresh();
         environment.reset();
-        if (center.getBottom() != null) {
-            center.setBottom(null);
-        }
+        getSelectedTab().ifPresent((e) -> {
+            e.reset();
+        });
         runnable.set(false);
+        term.clear();
     }
 
     public void openFile() {
@@ -657,7 +601,7 @@ public class Editor extends BorderPane {
         FileChooser fc = new FileChooser();
         fc.setTitle("Files");
         fc.setInitialDirectory(new File(Preferences.getFileDirectory()));
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly File", "*.yo"));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Assembly Object File", "*.yo"));
         File open = fc.showOpenDialog(getScene().getWindow());
         if (open != null) {
             try {
@@ -685,7 +629,8 @@ public class Editor extends BorderPane {
             }
         }
         if (go) {
-            pane.getTabs().add(new ScriptTab(sca));
+            pane.getTabs().add(new ScriptTab(sca, environment));
+            pane.getSelectionModel().select(pane.getTabs().get(pane.getTabs().size() - 1));
         }
     }
 
@@ -704,7 +649,7 @@ public class Editor extends BorderPane {
             File fa = new File(f, ef);
             try {
                 Files.createFile(fa.toPath());
-                pane.getTabs().add(new ScriptTab(new Script(fa, "")));
+                pane.getTabs().add(new ScriptTab(new Script(fa, ""), environment));
                 pane.getSelectionModel().select(pane.getTabs().get(pane.getTabs().size() - 1));
             } catch (IOException ex) {
             }
@@ -749,6 +694,9 @@ public class Editor extends BorderPane {
         });
         bar.getMenus().get(1).getItems().get(3).setOnAction((E) -> {
             copy();
+        });
+        bar.getMenus().get(1).getItems().get(4).setOnAction((E) -> {
+            paste();
         });
         bar.getMenus().get(1).getItems().get(5).setOnAction((E) -> {
             selectAll();

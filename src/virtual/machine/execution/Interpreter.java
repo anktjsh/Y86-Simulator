@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import virtual.machine.internal.Environment;
 import virtual.machine.internal.Memory;
+import virtual.machine.view.Terminal;
 
 /**
  *
@@ -11,22 +12,14 @@ import virtual.machine.internal.Memory;
  */
 public class Interpreter {
 
-    private Memory memory;
-    private Environment environ;
-
-    public Interpreter(Environment en, Memory m) {
-        environ = en;
-        memory = m;
-    }
-
+    public static Memory memory;
+    public static Environment environ;
     private static Interpreter interpret;
 
-    public static Interpreter getInstance(Environment en, Memory m) {
+    public static Interpreter getInstance() {
         if (interpret == null) {
-            interpret = new Interpreter(en, m);
+            interpret = new Interpreter();
         }
-        interpret.environ = en;
-        interpret.memory = m;
         return interpret;
     }
 
@@ -255,6 +248,71 @@ public class Interpreter {
             case (byte) 0xC3:
             case (byte) 0xC4:
                 singleOp(a, (byte) ((memory.getByte(programCount) >>> 4) & 0xF));
+                break;
+            case (byte) 0xD0:
+                environ.waitForInput();
+                reg1 = (byte) ((memory.getByte(programCount) >>> 4) & 0xF);
+                int ch;
+                try {
+                    ch = (int) (Terminal.scan().next().charAt(0));
+                } catch (Exception e) {
+                    ch = 0;
+                }
+                environ.getRegister().setValueInRegister(reg1, ch);
+                environ.receivedInput();
+                result = 1;
+                break;
+            case (byte) 0xD1:
+                environ.waitForInput();
+                reg1 = (byte) ((memory.getByte(programCount) >>> 4) & 0xF);
+                long check;
+                try {
+                    check = Terminal.scan().nextLong();
+                } catch (Exception e) {
+                    check = 0;
+                }
+                environ.getRegister().setValueInRegister(reg1, check);
+                environ.receivedInput();
+                result = 1;
+                break;
+            case (byte) 0xD2:
+                environ.waitForInput();
+                reg1 = (byte) ((memory.getByte(programCount) >>> 4) & 0xF);
+                reg2 = (byte) ((memory.getByte(programCount)) & 0xF);
+                long st = environ.getRegister().getValueFromRegister(reg1);
+                long co = environ.getRegister().getValueFromRegister(reg2);
+                String next = Terminal.scan().nextLine();
+                if (next.length() > co) {
+                    next = next.substring(0, (int) co);
+                }
+                for (long x = 0; x < next.length(); x++) {
+                    memory.putByte((int) (x + st), (byte) next.charAt((int) x));
+                }
+                environ.getRegister().setValueInRegister(reg2, next.length());
+                environ.receivedInput();
+                result = 1;
+                break;
+            case (byte) 0xE0:
+                reg1 = (byte) ((memory.getByte(programCount) >>> 4) & 0xF);
+                environ.write(Character.toString((char) environ.getRegister().getValueFromRegister(reg1)));
+                result = 1;
+                break;
+            case (byte) 0xE1:
+                reg1 = (byte) ((memory.getByte(programCount) >>> 4) & 0xF);
+                environ.write(Long.toString(environ.getRegister().getValueFromRegister(reg1)));
+                result = 1;
+                break;
+            case (byte) 0xE2:
+                reg1 = (byte) ((memory.getByte(programCount) >>> 4) & 0xF);
+                reg2 = (byte) ((memory.getByte(programCount)) & 0xF);
+                StringBuilder sb = new StringBuilder();
+                long e = environ.getRegister().getValueFromRegister(reg1);
+                long count = environ.getRegister().getValueFromRegister(reg2);
+                for (long x = e; x < e + count; x++) {
+                    sb.append((char) environ.getMemory().getByte((int) x));
+                }
+                environ.write(sb.toString());
+                result = 1;
                 break;
             default:
                 environ.setStatus(3);

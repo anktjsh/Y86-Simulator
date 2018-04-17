@@ -1,0 +1,11 @@
+java.lang.ArrayIndexOutOfBoundsException
+	at java.lang.String.getChars(String.java:826)
+	at java.lang.AbstractStringBuilder.append(AbstractStringBuilder.java:449)
+	at java.lang.StringBuilder.append(StringBuilder.java:136)
+	at virtual.machine.core.Strings.getHexBuild(Strings.java:96)
+	at virtual.machine.core.Strings.getHex(Strings.java:58)
+	at virtual.machine.view.Editor.lambda$null$26(Editor.java:317)
+	at com.sun.javafx.application.PlatformImpl.lambda$null$173(PlatformImpl.java:295)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at com.sun.javafx.application.PlatformImpl.lambda$runLater$174(PlatformImpl.java:294)
+	at com.sun.glass.ui.InvokeLaterDispatcher$Future.run(InvokeLaterDispatcher.java:95)

@@ -65,4 +65,4 @@ L2:
 	ret
 .pos 0x200
 Stack:
-
+	.quad 0x0

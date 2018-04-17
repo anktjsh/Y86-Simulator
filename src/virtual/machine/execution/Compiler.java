@@ -51,12 +51,10 @@ public class Compiler {
             put("jne", (byte) 0x74);
             put("jge", (byte) 0x75);
             put("jg", (byte) 0x76);
-
             put("jb", (byte) 0x77);
             put("jnb", (byte) 0x78);
             put("jbe", (byte) 0x79);
             put("ja", (byte) 0x7A);
-
             put("call", (byte) 0x80);
             put("ret", (byte) 0x90);
             put("pushq", (byte) 0xA0);
@@ -66,6 +64,12 @@ public class Compiler {
             put("incq", (byte) 0xC2);
             put("decq", (byte) 0xC3);
             put("bangq", (byte) 0xC4);
+            put("getc", (byte) 0xD0);//read character into register
+            put("getq", (byte) 0xD1);//read up to 64 bit integer into register
+            put("gets", (byte) 0xD2);//read character array or string into memory
+            put("outc", (byte) 0xE0);//prints char from register
+            put("outq", (byte) 0xE1);//prints the 64 bit integer given
+            put("outs", (byte) 0xE2);//prints the string from this memory location, in register
             put("%rax", (byte) 0x0);
             put("%rcx", (byte) 0x1);
             put("%rdx", (byte) 0x2);
@@ -142,6 +146,13 @@ public class Compiler {
             put("incq", (byte) 2);
             put("decq", (byte) 2);
             put("bangq", (byte) 2);
+
+            put("getc", (byte) 2);
+            put("getq", (byte) 2);
+            put("gets", (byte) 2);
+            put("outc", (byte) 2);
+            put("outq", (byte) 2);
+            put("outs", (byte) 2);
         }
     };
 
@@ -161,7 +172,7 @@ public class Compiler {
     }
 
 //    public synchronized void compile(String s, TriCallback<Integer, ArrayList<Pair<String, ArrayList<Byte>>>, Void> call) {
-//        
+//
 //    }
     public synchronized ArrayList<Pair<String, ArrayList<Byte>>> compile(String s) throws CompilerException {
         ArrayList<Pair<String, ArrayList<Byte>>> oper = new ArrayList<>();
@@ -423,7 +434,9 @@ public class Compiler {
         } else if (s.startsWith("popq") || s.startsWith("pushq")
                 || s.startsWith("notq") || s.startsWith("negq")
                 || s.startsWith("incq") || s.startsWith("decq")
-                || s.startsWith("bangq")) {
+                || s.startsWith("bangq") || s.startsWith("getc")
+                || s.startsWith("getq") || s.startsWith("outc")
+                || s.startsWith("outq")) {
             Scanner read = new Scanner(s);
             if (!read.hasNext()) {
                 throw new CompilerException(line, "insufficient operands");

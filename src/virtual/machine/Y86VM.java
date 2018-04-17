@@ -14,28 +14,21 @@ import javafx.application.Preloader.StateChangeNotification;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -48,12 +41,12 @@ import virtual.machine.view.Preferences;
  * @author aniket
  */
 public class Y86VM extends Application {
-    
+
     public static final String CSS = Y86VM.class.getResource("material.css").toExternalForm();
     public static final Image ICON = new Image(Y86VM.class.getResourceAsStream("icon.png"));
-    
+
     BooleanProperty ready = new SimpleBooleanProperty(false);
-    
+
     private void longStart() {
         Task task = new Task<Void>() {
             @Override
@@ -71,7 +64,7 @@ public class Y86VM extends Application {
         };
         new Thread(task).start();
     }
-    
+
     @Override
     public void start(Stage stage) {
         longStart();
@@ -114,12 +107,13 @@ public class Y86VM extends Application {
                 alert.showAndWait();
             });
         });
+        stage.getIcons().add(Y86VM.ICON);
+        Environment launchVM = launchVM(stage);
         stage.setOnCloseRequest((e) -> {
+            launchVM.shutdown();
             Platform.exit();
             System.exit(0);
         });
-        stage.getIcons().add(Y86VM.ICON);
-        launchVM(stage);
         ready.addListener((ov, t, t1) -> {
             if (Boolean.TRUE.equals(t1)) {
                 Platform.runLater(() -> {
@@ -127,65 +121,12 @@ public class Y86VM extends Application {
                         setAppleSpecificFeatures(stage);
                     }
                     stage.show();
-                    showPref(stage);
                 });
             }
         });
     }
-    
-    private void showPref(Stage stage) {
-        File sett = new File("assembly", "settings.txt");
-        if (!sett.exists()) {
-            Platform.runLater(() -> {
-                Stage dir = new Stage();
-                dir.setTitle("File Directory");
-                dir.initOwner(stage);
-                dir.initModality(Modality.APPLICATION_MODAL);
-                dir.setResizable(false);
-                dir.setScene(buildScene(dir));
-                if (Preferences.getDarkTheme()) {
-                    dir.getScene().getStylesheets().add(CSS);
-                }
-                dir.setOnCloseRequest((E) -> E.consume());
-                dir.showAndWait();
-            });
-        }
-    }
-    
-    private Scene buildScene(Stage stage) {
-        BorderPane root = new BorderPane();
-        VBox controls = new VBox(15);
-        controls.setPadding(new Insets(25));
-        controls.setAlignment(Pos.CENTER);
-        root.setCenter(controls);
-        Button choose, defau, confirm;
-        TextField dir;
-        controls.getChildren().addAll(
-                choose = new Button("Select File Directory"),
-                dir = new TextField(),
-                defau = new Button("Select Default Directory"),
-                confirm = new Button("Confirm"));
-        confirm.setDefaultButton(true);
-        dir.setEditable(false);
-        choose.setOnAction((e) -> {
-            DirectoryChooser dc = new DirectoryChooser();
-            dc.setTitle("Select File Directory");
-            File show = dc.showDialog(stage);
-            if (show != null) {
-                dir.setText(show.getAbsolutePath());
-            }
-        });
-        defau.setOnAction((e) -> {
-            dir.setText(Preferences.getFileDirectory());
-        });
-        confirm.setOnAction((E) -> {
-            Preferences.setFileDirectory(dir.getText());
-            stage.close();
-        });
-        return new Scene(root, 400, 270);
-    }
-    
-    private void launchVM(Stage currentStage) {
+
+    private Environment launchVM(Stage currentStage) {
         currentStage.getIcons().add(Y86VM.ICON);
         Environment environ = new Environment();
         currentStage.setTitle("Y86-64 Assembly Virtual Machine Simulator");
@@ -201,7 +142,6 @@ public class Y86VM extends Application {
             }
         });
         if (System.getProperty("os.name").toLowerCase().contains("mac")) {
-            currentStage.setFullScreenExitHint("");
             currentStage.setFullScreen(true);
         } else {
             currentStage.setMaximized(true);
@@ -209,8 +149,9 @@ public class Y86VM extends Application {
         currentStage.setOnCloseRequest((e) -> {
             closeRequest(currentStage, e);
         });
+        return environ;
     }
-    
+
     private void closeRequest(Stage currentStage, WindowEvent e) {
         Editor ed = (Editor) currentStage.getScene().getRoot();
         TabPane tabs = (TabPane) ((BorderPane) ed.getCenter()).getCenter();
@@ -243,19 +184,19 @@ public class Y86VM extends Application {
             hideFullScreen(currentStage);
         }
     }
-    
+
     private void hideFullScreen(Stage stage) {
         if (stage.isFullScreen()) {
             stage.setFullScreen(false);
         }
     }
-    
+
     public static void main(String[] args) {
         launch(args);
     }
-    
+
     private Preferences pref;
-    
+
     private void setAppleSpecificFeatures(Stage stage) {
         MenuToolkit tk = MenuToolkit.toolkit();
         Menu defaultApplicationMenu = tk.createDefaultApplicationMenu("Y86-64 VM");
@@ -280,5 +221,5 @@ public class Y86VM extends Application {
             pref.showAndWait();
         });
     }
-    
+
 }

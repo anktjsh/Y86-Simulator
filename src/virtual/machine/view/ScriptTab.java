@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.event.Event;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -31,6 +32,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -44,8 +46,10 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 import static virtual.machine.Y86VM.ICON;
 import virtual.machine.core.Pair;
 import virtual.machine.core.Script;
+import virtual.machine.core.Strings;
 import virtual.machine.execution.Compiler;
 import virtual.machine.execution.ConcurrentCompiler;
+import virtual.machine.internal.Environment;
 
 /**
  *
@@ -55,10 +59,11 @@ public class ScriptTab extends Tab {
 
     public static final String LIGHT = ScriptTab.class.getResource("light_css.css").toExternalForm(),
             DARK = ScriptTab.class.getResource("dark_css.css").toExternalForm();
-    private final CodeArea area;
+    private final CodeArea area, object;
     private final Script script;
     private final BorderPane center, bottom;
-
+    private final VirtualizedScrollPane virtual;
+    private final IntegerProperty counterLine = new SimpleIntegerProperty(0);
     private final Pair<Integer, String> errorLines = new Pair<>(-1, "");
     private IntFunction<Node> numberFactory;
     private IntFunction<Node> arrowFactory;
@@ -74,7 +79,8 @@ public class ScriptTab extends Tab {
         "cmovne", "cmovle", "call",
         "halt", "popq", "pushq", "mrmovq", "je", "jg",
         "imultq", "divq", "modq", "sarq", "shrq", "salq", "orq",
-        "incq", "decq", "notq", "negq", "bangq"
+        "incq", "decq", "notq", "negq", "bangq",
+        "outq", "outc", "getc", "getq", "outs", "gets"
     };
 
     private static final String[] DIRECTIVES = new String[]{
@@ -113,7 +119,7 @@ public class ScriptTab extends Tab {
         return -1;
     }
 
-    public ScriptTab(Script scr) {
+    public ScriptTab(Script scr, Environment env) {
         super(scr.getFile().getName());
         script = scr;
         rowPosition = new SimpleIntegerProperty();
@@ -124,13 +130,6 @@ public class ScriptTab extends Tab {
             Platform.runLater(() -> {
                 area.setStyle("-fx-font-size:" + neweR.intValue() + ";"
                         + "-fx-font-family:" + Preferences.getFontName() + ";");
-                placeFactory();
-            });
-        });
-        Preferences.darkTheme().addListener((ob, older, neweR) -> {
-            Platform.runLater(() -> {
-                area.getStylesheets().remove((older ? DARK : LIGHT));
-                area.getStylesheets().add(neweR ? DARK : LIGHT);
                 placeFactory();
             });
         });
@@ -164,7 +163,8 @@ public class ScriptTab extends Tab {
                 new MenuItem("Close All"),
                 new MenuItem("Close Other"),
                 new MenuItem("Copy File"),
-                new MenuItem("Copy File Path"));
+                new MenuItem("Copy File Path"),
+                new MenuItem("Delete File"));
         getContextMenu().getItems().get(0).setOnAction((e) -> {
             Event.fireEvent(this, new Event(Tab.TAB_CLOSE_REQUEST_EVENT));
             if (getTabPane() != null) {
@@ -201,6 +201,18 @@ public class ScriptTab extends Tab {
             cc.putUrl(getScript().getFile().getAbsolutePath());
             cc.putString(cc.getUrl());
             Clipboard.getSystemClipboard().setContent(cc);
+        });
+        getContextMenu().getItems().get(5).setOnAction((e) -> {
+            Alert al = new Alert(AlertType.CONFIRMATION);
+            al.initModality(Modality.APPLICATION_MODAL);
+            al.initOwner(getTabPane().getScene().getWindow());
+            al.setHeaderText("Are you sure you would like to delete this file?");
+            al.showAndWait().ifPresent((ef) -> {
+                if (ef == ButtonType.OK) {
+                    script.getFile().delete();
+                    getTabPane().getTabs().remove(this);
+                }
+            });
         });
         center = new BorderPane();
         center.setCenter(new VirtualizedScrollPane(area));
@@ -272,6 +284,81 @@ public class ScriptTab extends Tab {
                 }
             }
         });
+        area.addEventFilter(KeyEvent.ANY, (e) -> {
+            if (e.isShortcutDown()) {
+                switch (e.getCode()) {
+                    case Z:
+                        if (!e.isShiftDown()) {
+                            e.consume();
+                        }
+                        break;
+                    case Y:
+                    case C:
+                    case V:
+                    case A:
+                    case X:
+                        e.consume();
+                        break;
+                }
+            }
+        });
+        object = new CodeArea();
+        object.setStyle((Preferences.getDarkTheme() ? "-fx-background-color:rgb(50, 50, 50);" : ""));
+        Preferences.darkTheme().addListener((ob, older, neweR) -> {
+            Platform.runLater(() -> {
+                String old = (older ? DARK : LIGHT);
+                area.getStylesheets().remove(old);
+                area.getStylesheets().add(neweR ? DARK : LIGHT);
+                placeFactory();
+                object.setStyle((neweR ? "-fx-background-color:rgb(50, 50, 50);" : ""));
+                object.getStylesheets().remove(old);
+                object.getStylesheets().add(neweR ? DARK : LIGHT);
+            });
+        });
+        object.getStylesheets().add(Preferences.getDarkTheme() ? DARK : LIGHT);
+        object.setEditable(false);
+        virtual = new VirtualizedScrollPane(object);
+        final ChangeListener<Number> b = (ob, older, newer) -> {
+            virtual.setMinWidth(center.getWidth() / 2);
+        };
+        center.widthProperty().addListener(b);
+        CursorFactory cursor = new CursorFactory(counterLine);
+        object.setParagraphGraphicFactory((line) -> {
+            return cursor.apply(line);
+        });
+        BorderPane.setMargin(object, new Insets(5));
+        counterLine.addListener((ob, older, newer) -> {
+            object.setParagraphGraphicFactory((line) -> {
+                return cursor.apply(line);
+            });
+        });
+        env.counter().addListener((ob, older, newer) -> {
+            alignCounter(newer.intValue());
+        });
+    }
+
+    public void alignCounter(int newValue) {
+        if (center.getRight() != null) {
+            int num = 0;
+            boolean found = false;
+            for (int x = 0; x < object.getParagraphs().size(); x++) {
+                if (object.getParagraphs().get(x).getText().length() >= 6) {
+                    String cmp = object.getParagraphs().get(x).getText().substring(0, 6);
+                    if (cmp.compareTo(Strings.getHex(newValue, 4)) <= 0) {
+                        found = true;
+                        num = x;
+                    } else {
+                        if (found) {
+                            break;
+                        }
+                    }
+                }
+            }
+            final int numx = num;
+            Platform.runLater(() -> {
+                counterLine.set(numx);
+            });
+        }
     }
 
     public final void concurrent(String s) {
@@ -320,7 +407,7 @@ public class ScriptTab extends Tab {
 
     public void find() {
         bottom.setTop(getFindBox());
-        ((HBox) getFindBox()).getChildren().get(3).requestFocus();
+        ((HBox) getFindBox()).getChildren().get(0).requestFocus();
     }
 
     private Node getReplaceBox() {
@@ -542,5 +629,17 @@ public class ScriptTab extends Tab {
         }
         spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
         return spansBuilder.create();
+    }
+
+    void reset() {
+        if (center.getRight() != null) {
+            center.setRight(null);
+        }
+        object.replaceText("");
+    }
+
+    void setObjectText(String toString) {
+        object.appendText(toString);
+        center.setRight(virtual);
     }
 }

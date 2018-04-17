@@ -1,0 +1,12 @@
+java.util.InputMismatchException
+	at java.util.Scanner.throwFor(Scanner.java:864)
+	at java.util.Scanner.next(Scanner.java:1485)
+	at java.util.Scanner.nextLong(Scanner.java:2222)
+	at java.util.Scanner.nextLong(Scanner.java:2182)
+	at virtual.machine.execution.Interpreter.interpret(Interpreter.java:261)
+	at virtual.machine.internal.Environment.lambda$nextInstruction$1(Environment.java:193)
+	at virtual.machine.internal.Environment.nextInstruction(Environment.java:205)
+	at virtual.machine.internal.Environment.lambda$run$0(Environment.java:172)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:748)

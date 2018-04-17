@@ -92,7 +92,7 @@ public class Strings {
         return newBuild.toString();
     }
 
-    public static StringBuilder getHexBuild() {
+    public synchronized static StringBuilder getHexBuild() {
         return newBuild().append("0x");
     }
 

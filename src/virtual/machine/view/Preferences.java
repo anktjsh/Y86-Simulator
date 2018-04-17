@@ -15,7 +15,10 @@ import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -160,6 +163,23 @@ public class Preferences extends Stage {
             dc.setTitle("Select File Directory");
             File show = dc.showDialog(this);
             if (show != null) {
+                Alert al = new Alert(AlertType.CONFIRMATION);
+                al.initOwner(getScene().getWindow());
+                al.initModality(Modality.APPLICATION_MODAL);
+                al.setHeaderText("Would you like to move all source files from the current directory to the new directory?");
+                al.showAndWait().ifPresent((ee) -> {
+                    if (ee == ButtonType.OK) {
+                        File old = new File(FILE_DIRECTORY.get());
+                        for (File f : old.listFiles()) {
+                            if (f.getName().endsWith(".ys")) {
+                                try {
+                                    Files.move(f.toPath(), new File(show, f.getName()).toPath());
+                                } catch (IOException ex) {
+                                }
+                            }
+                        }
+                    }
+                });
                 dir.setText(show.getAbsolutePath());
             }
         });
@@ -194,11 +214,18 @@ public class Preferences extends Stage {
                 new Instruction("negq", "2's complement negation"),
                 new Instruction("incq", "Increment"),
                 new Instruction("decq", "Decrement"),
-                new Instruction("bangq", "1 if input is 0, 0 otherwise"));
+                new Instruction("bangq", "1 if input is 0, 0 otherwise"),
+                new Instruction("getc", "Places a character from the console into register"),
+                new Instruction("getq", "Places a 64-bit value from the console into register"),
+                new Instruction("gets", "Places a string from the console into memory"),
+                new Instruction("outc", "Writes a character from a register onto the console"),
+                new Instruction("outq", "Writes a 64-bit value from a register onto the console"),
+                new Instruction("outs", "Writes a string from memory onto the console")
+        );
         tabs.getTabs().forEach((b) -> {
             b.setClosable(false);
         });
-        return new Scene(tabs, 400, 400);
+        return new Scene(tabs, 480, 400);
     }
 
     public class Instruction {
