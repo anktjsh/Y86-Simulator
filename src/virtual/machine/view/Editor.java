@@ -674,38 +674,58 @@ public class Editor extends BorderPane {
             loadFile();
         });
         bar.getMenus().get(0).getItems().get(3).setOnAction((e) -> {
-            save();
+            if (!term.isFocused()) {
+                save();
+            }
         });
         bar.getMenus().get(0).getItems().get(4).setOnAction((e) -> {
-            saveAll();
+            if (!term.isFocused()) {
+                saveAll();
+            }
         });
         bar.getMenus().get(1).getItems().addAll(new MenuItem("Undo"),
                 new MenuItem("Redo"), new MenuItem("Cut"), new MenuItem("Copy"),
                 new MenuItem("Paste"), new MenuItem("Select All"),
                 new MenuItem("Find"), new MenuItem("Replace"));
         bar.getMenus().get(1).getItems().get(0).setOnAction((E) -> {
-            undo();
+            if (!term.isFocused()) {
+                undo();
+            }
         });
         bar.getMenus().get(1).getItems().get(1).setOnAction((E) -> {
-            redo();
+            if (!term.isFocused()) {
+                redo();
+            }
         });
         bar.getMenus().get(1).getItems().get(2).setOnAction((E) -> {
-            cut();
+            if (!term.isFocused()) {
+                cut();
+            }
         });
         bar.getMenus().get(1).getItems().get(3).setOnAction((E) -> {
-            copy();
+            if (!term.isFocused()) {
+                copy();
+            }
         });
         bar.getMenus().get(1).getItems().get(4).setOnAction((E) -> {
-            paste();
+            if (!term.isFocused()) {
+                paste();
+            }
         });
         bar.getMenus().get(1).getItems().get(5).setOnAction((E) -> {
-            selectAll();
+            if (!term.isFocused()) {
+                selectAll();
+            }
         });
         bar.getMenus().get(1).getItems().get(6).setOnAction((E) -> {
-            find();
+            if (!term.isFocused()) {
+                find();
+            }
         });
         bar.getMenus().get(1).getItems().get(7).setOnAction((E) -> {
-            replace();
+            if (!term.isFocused()) {
+                replace();
+            }
         });
         bar.getMenus().get(2).getItems().addAll(new MenuItem("Compile"),
                 new MenuItem("Next Instruction"),

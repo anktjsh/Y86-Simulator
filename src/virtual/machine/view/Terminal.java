@@ -7,7 +7,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javafx.application.Platform;
 import javafx.scene.control.TextArea;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
@@ -17,9 +16,9 @@ import virtual.machine.internal.Environment;
  *
  * @author aniket
  */
-public class Terminal extends BorderPane {
+public class Terminal extends TextArea {
 
-    private final TextArea txtArea;
+//    private final TextArea txtArea;
     private final String LINE_SEPARATOR = System.lineSeparator();
     private final Font font;
 
@@ -32,13 +31,11 @@ public class Terminal extends BorderPane {
 
     public Terminal(Environment env) {
         this.env = env;
-        this.txtArea = new TextArea();
-        setCenter(txtArea);
         this.font = Font.font("SansSerif", FontWeight.BOLD, FontPosture.REGULAR, 15);
-        txtArea.setOnKeyPressed((e) -> {
+        setOnKeyPressed((e) -> {
             if (null != e.getCode()) switch (e.getCode()) {
                 case BACK_SPACE:{
-                    int cursorPosition = txtArea.getCaretPosition();
+                    int cursorPosition = getCaretPosition();
                     if (isKeysDisabled) {
                         e.consume();
                     }       if (cursorPosition == minCursorPosition && !isKeysDisabled) {
@@ -63,7 +60,7 @@ public class Terminal extends BorderPane {
                     e.consume();
                     break;
                 case LEFT:{
-                    int cursorPosition = txtArea.getCaretPosition();
+                    int cursorPosition = getCaretPosition();
                     if (isKeysDisabled) {
                         e.consume();
                     }       if (cursorPosition == minCursorPosition && !isKeysDisabled) {
@@ -77,14 +74,14 @@ public class Terminal extends BorderPane {
                     break;
             }
         });
-        txtArea.caretPositionProperty().addListener((ob, older, newer) -> {
+        caretPositionProperty().addListener((ob, older, newer) -> {
             if (newer.intValue() < minCursorPosition) {
                 Platform.runLater(() -> {
-                    txtArea.positionCaret(txtArea.getText().length());
+                    positionCaret(getText().length());
                 });
             }
         });
-        txtArea.setFont(font);
+        setFont(font);
         showPrompt();
         env.output((s) -> {
             print(s);
@@ -101,29 +98,29 @@ public class Terminal extends BorderPane {
     }
 
     private void setMinCursorPosition() {
-        minCursorPosition = txtArea.getCaretPosition();
+        minCursorPosition = getCaretPosition();
     }
 
     public void clear() {
         recreateStream();
-        txtArea.setText("");
+        setText("");
         showPrompt();
     }
 
     private void showPrompt() {
-        txtArea.appendText("> ");
+        appendText("> ");
     }
 
     private void showNewLine() {
-        txtArea.appendText(LINE_SEPARATOR);
+        appendText(LINE_SEPARATOR);
     }
 
     public void enableTerminal() {
-        txtArea.setDisable(false);
+        setDisable(false);
     }
 
     public void disableTerminal() {
-        txtArea.setDisable(true);
+        setDisable(true);
     }
 
     private String extractCommand() {
@@ -133,15 +130,15 @@ public class Terminal extends BorderPane {
     }
 
     private void removeLastLineSeparator() {
-        String terminalText = txtArea.getText();
+        String terminalText = getText();
         if (terminalText.charAt(terminalText.length() - 1) == '\n') {
             terminalText = terminalText.substring(0, terminalText.length() - 1);
         }
-        txtArea.setText(terminalText);
+        setText(terminalText);
     }
 
     private String stripPreviousCommands() {
-        String terminalText = txtArea.getText();
+        String terminalText = getText();
         int lastPromptIndex = terminalText.lastIndexOf('>') + 2;
         if (lastPromptIndex < 0 || lastPromptIndex >= terminalText.length()) {
             return "";
@@ -151,7 +148,7 @@ public class Terminal extends BorderPane {
     }
 
     private void print(String invalid_Statement) {
-        txtArea.appendText(invalid_Statement);
+        appendText(invalid_Statement);
     }
 
     private void executeCommand(String command) {

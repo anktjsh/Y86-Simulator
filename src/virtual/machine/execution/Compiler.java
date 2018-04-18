@@ -201,7 +201,9 @@ public class Compiler {
                             throw new CompilerException(line + 1, "Missing argument for .align directive");
                         }
                         long al = Long.parseLong(spl[1]);
-                        totalBytes += al - (totalBytes % al);
+                        long mod = indexPos % al;
+                        long diff = (mod == 0) ? 0 : (al - mod);
+                        totalBytes += diff;
                     } else if (token.equals(".quad")) {
                         totalBytes += Long.BYTES;
                     } else if (token.startsWith(".pos")) {
@@ -236,26 +238,36 @@ public class Compiler {
                                 throw new CompilerException(line + 1, "Missing argument for .quad directive");
                             }
                             String num = spl[1];
-                            int base = 10;
-                            if (num.startsWith("0x")) {
-                                num = num.substring(2);
-                                base = 16;
-                            }
-                            if (base == 16) {
-                                int diff = 16 - num.length();
-                                for (int n = 0; n < diff; n++) {
-                                    num += "0";
-                                }
-                                for (int n = 14; n >= 0; n -= 2) {
-                                    operations.add((byte) Integer.parseInt(num.substring(n, n + 2), base));
-                                }
-                            } else {
+                            if (labels.containsKey(num)) {
                                 ByteBuffer buff = ByteBuffer.allocate(Long.BYTES);
-                                buff.putLong(Long.parseLong(num));
+                                buff.putLong(labels.get(num));
                                 byte[] arr = (buff.array());
                                 reverse(arr);
                                 for (byte b : arr) {
                                     operations.add(b);
+                                }
+                            } else {
+                                int base = 10;
+                                if (num.startsWith("0x")) {
+                                    num = num.substring(2);
+                                    base = 16;
+                                }
+                                if (base == 16) {
+                                    int diff = 16 - num.length();
+                                    for (int n = 0; n < diff; n++) {
+                                        num = "0" + num;
+                                    }
+                                    for (int n = 14; n >= 0; n -= 2) {
+                                        operations.add((byte) Integer.parseInt(num.substring(n, n + 2), base));
+                                    }
+                                } else {
+                                    ByteBuffer buff = ByteBuffer.allocate(Long.BYTES);
+                                    buff.putLong(Long.parseLong(num));
+                                    byte[] arr = (buff.array());
+                                    reverse(arr);
+                                    for (byte b : arr) {
+                                        operations.add(b);
+                                    }
                                 }
                             }
                             indexPos += Long.BYTES;
@@ -271,10 +283,11 @@ public class Compiler {
                             for (long a = 0; a < diff; a++) {
                                 operations.add((byte) 0);
                             }
-                            indexPos += diff;
+                            indexPos = al;
                         } else if (val.startsWith(".align")) {
                             long al = Long.parseLong(spl[1]);
-                            long diff = al - (indexPos % al);
+                            long mod = indexPos % al;
+                            long diff = (mod == 0) ? 0 : (al - mod);
                             indexPos += diff;
                             for (long a = 0; a < diff; a++) {
                                 operations.add((byte) 0);

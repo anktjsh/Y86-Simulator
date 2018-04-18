@@ -5,17 +5,17 @@
 # Array of 4 elements
 .align 8
 data:
-  	.quad 0x0000000000000004
-  	.quad 0x0000000000000003
-  	.quad 0x0000000000000002
-  	.quad 0x0000000000000007
-	.quad 0x0000000000000008
-	.quad 0x0000000000000006
-	.quad 0x0000000000000003
-	.quad 0x0000000000000002
-	.quad 0x0000000000000009
-	.quad 0x0000000000000000
-	.quad 0x0000000000000002
+  	.quad 0x4
+  	.quad 0x3
+  	.quad 0x2
+  	.quad 0x7
+	.quad 0x8
+	.quad 0x6
+	.quad 0x3
+	.quad 0x2
+	.quad 0x9
+	.quad 0x0
+	.quad 0x2
 Main:
   	irmovq data,%rdi
     	irmovq $11, %rsi
