@@ -201,6 +201,9 @@ public class Compiler {
                             throw new CompilerException(line + 1, "Missing argument for .align directive");
                         }
                         long al = Long.parseLong(spl[1]);
+                        if (!(al == 1 || al == 2 || al == 4 || al == 8)) {
+                            throw new CompilerException(line + 1, "Invalid argument for .align directive");
+                        }
                         long mod = indexPos % al;
                         long diff = (mod == 0) ? 0 : (al - mod);
                         totalBytes += diff;
@@ -465,6 +468,9 @@ public class Compiler {
             String register = read.next();
             if (!mappings.containsKey(register)) {
                 throw new CompilerException(line, "invalid operands");
+            }
+            if (read.hasNext()) {
+                throw new CompilerException(line, "Too many operands");
             }
             byt.add((byte) (mappings.get(register) << 4 | 0xF));
         } else {

@@ -406,6 +406,7 @@ public class Editor extends BorderPane {
         pane.getTabs().stream().filter((b) -> (b instanceof ScriptTab)).map((b) -> (ScriptTab) b).forEachOrdered((st) -> {
             save.add(st.getScript().getFile().getAbsolutePath());
         });
+        System.out.println(save);
         try {
             Files.write(config.toPath(), save);
         } catch (IOException ex) {

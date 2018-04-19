@@ -109,7 +109,8 @@ public class Y86VM extends Application {
         });
         stage.getIcons().add(Y86VM.ICON);
         Environment launchVM = launchVM(stage);
-        stage.setOnCloseRequest((e) -> {
+        stage.setOnCloseRequest((e) -> {            
+            closeRequest(stage, e);
             launchVM.shutdown();
             Platform.exit();
             System.exit(0);
@@ -146,9 +147,6 @@ public class Y86VM extends Application {
         } else {
             currentStage.setMaximized(true);
         }
-        currentStage.setOnCloseRequest((e) -> {
-            closeRequest(currentStage, e);
-        });
         return environ;
     }
 
