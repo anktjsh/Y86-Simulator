@@ -508,6 +508,9 @@ public class Compiler {
                     throw new CompilerException(line, "Unrecognized tokens on line : " + save);
                 }
             }
+            if (lessThan) {
+                throw new CompilerException(line, "Insufficient Operands on line : " + save);
+            }
         }
         Scanner finalCheck = new Scanner(save);
         if (!finalCheck.hasNext()) {
