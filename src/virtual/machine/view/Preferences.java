@@ -188,44 +188,47 @@ public class Preferences extends Stage {
         ext.setPadding(new Insets(5));
         TableColumn<Instruction, String> ins = new TableColumn<>("Instruction");
         TableColumn<Instruction, String> opr = new TableColumn<>("Implementation");
+        TableColumn<Instruction, String> usa = new TableColumn<>("Usage");
         ins.setCellValueFactory(new PropertyValueFactory<>("firstName"));
         opr.setCellValueFactory(new PropertyValueFactory<>("lastName"));
+        usa.setCellValueFactory(new PropertyValueFactory<>("usage"));
         ins.setSortable(false);
         opr.setSortable(false);
-        table.getColumns().addAll(ins, opr);
+        usa.setSortable(false);
+        table.getColumns().addAll(ins, opr, usa);
         table.getItems().addAll(
-                new Instruction("brk", "Sets a breakpoint at this location"),
-                new Instruction("cmovb", "Conditional Move if below"),
-                new Instruction("cmovnb", "Conditional Move if not below"),
-                new Instruction("cmovbe", "Conditional Move if below or equal"),
-                new Instruction("cmova", "Conditional Move if above"),
-                new Instruction("imultq", "Multiply"),
-                new Instruction("divq", "Divide"),
-                new Instruction("modq", "Modulus"),
-                new Instruction("sarq", "Arithmetic Right Shift"),
-                new Instruction("shrq", "Logical Right Shift"),
-                new Instruction("salq", "Arithmetic Left Shift"),
-                new Instruction("orq", "Bitwise OR"),
-                new Instruction("jb", "Jump if below"),
-                new Instruction("jnb", "Jump if not below"),
-                new Instruction("jbe", "Jump if below or equal"),
-                new Instruction("ja", "Jump if above"),
-                new Instruction("notq", "Bitwise NOT"),
-                new Instruction("negq", "2's complement negation"),
-                new Instruction("incq", "Increment"),
-                new Instruction("decq", "Decrement"),
-                new Instruction("bangq", "1 if input is 0, 0 otherwise"),
-                new Instruction("getc", "Places a character from the console into register"),
-                new Instruction("getq", "Places a 64-bit value from the console into register"),
-                new Instruction("gets", "Places a string from the console into memory"),
-                new Instruction("outc", "Writes a character from a register onto the console"),
-                new Instruction("outq", "Writes a 64-bit value from a register onto the console"),
-                new Instruction("outs", "Writes a string from memory onto the console")
+                new Instruction("brk", "Sets a breakpoint at this location", "brk #placed on its own line"),
+                new Instruction("cmovb", "Conditional Move if below", "cmovb %r10, %r11"),
+                new Instruction("cmovnb", "Conditional Move if not below", "cmovnb %r10, %r11"),
+                new Instruction("cmovbe", "Conditional Move if below or equal", "cmovbe %r10, %r11"),
+                new Instruction("cmova", "Conditional Move if above", "cmova %r10, %r11"),
+                new Instruction("imultq", "Multiply", "imultq %r10, %r11"),
+                new Instruction("divq", "Divide","divq %r10, %r11"),
+                new Instruction("modq", "Modulus", "modq %r10, %r11"),
+                new Instruction("sarq", "Arithmetic Right Shift", "sarq %r10, %r11"),
+                new Instruction("shrq", "Logical Right Shift", "shrq %r10, %r11"),
+                new Instruction("salq", "Arithmetic Left Shift", "salq %r10, %r11"),
+                new Instruction("orq", "Bitwise OR", "orq %r10, %r11"),
+                new Instruction("jb", "Jump if below", "jb Label"),
+                new Instruction("jnb", "Jump if not below", "jnb Label"),
+                new Instruction("jbe", "Jump if below or equal", "jbe Label"),
+                new Instruction("ja", "Jump if above", "ja Label"),
+                new Instruction("notq", "Bitwise NOT", "notq %r10"),
+                new Instruction("negq", "2's complement negation", "negq %r10"),
+                new Instruction("incq", "Increment", "incq %r10"),
+                new Instruction("decq", "Decrement", "decq %r10"),
+                new Instruction("bangq", "1 if input is 0, 0 otherwise", "bangq %r10"),
+                new Instruction("getc", "Places a character from the console into register", "getc %r10"),
+                new Instruction("getq", "Places a 64-bit value from the console into register", "getq %r10"),
+                new Instruction("gets", "Places a string from the console into memory", "gets %r10, %r11"),
+                new Instruction("outc", "Writes a character from a register onto the console", "outc %r10"),
+                new Instruction("outq", "Writes a 64-bit value from a register onto the console", "outq %r10"),
+                new Instruction("outs", "Writes a string from memory onto the console", "outs %r10, %r11")
         );
         tabs.getTabs().forEach((b) -> {
             b.setClosable(false);
         });
-        return new Scene(tabs, 480, 400);
+        return new Scene(tabs, 720, 400);
     }
 
     public class Instruction {
@@ -257,10 +260,25 @@ public class Preferences extends Stage {
         public StringProperty lastNameProperty() {
             return lastName;
         }
+        
+        private final StringProperty usage;
 
-        public Instruction(String a, String b) {
+        public void setUsage(String value) {
+            usageProperty().set(value);
+        }
+
+        public String getUsage() {
+            return usageProperty().get();
+        }
+
+        public StringProperty usageProperty() {
+            return usage;
+        }
+
+        public Instruction(String a, String b, String c) {
             firstName = new SimpleStringProperty(a);
             lastName = new SimpleStringProperty(b);
+            usage = new SimpleStringProperty(c);
         }
     }
 

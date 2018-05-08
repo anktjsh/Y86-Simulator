@@ -170,13 +170,11 @@ public class Compiler {
     public Set<String> getLabels() {
         return lab;
     }
-
-//    public synchronized void compile(String s, TriCallback<Integer, ArrayList<Pair<String, ArrayList<Byte>>>, Void> call) {
-//
-//    }
+    
     public synchronized ArrayList<Pair<String, ArrayList<Byte>>> compile(String s) throws CompilerException {
         ArrayList<Pair<String, ArrayList<Byte>>> oper = new ArrayList<>();
         long indexPos = 0;
+        s = s.replaceAll(":", ":\n");
         String[] lines = s.split("\n");
         for (int x = 0; x < lines.length; x++) {
             String val = lines[x].trim();
