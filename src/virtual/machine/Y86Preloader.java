@@ -32,7 +32,7 @@ public class Y86Preloader extends Preloader {
     private Scene createPreloaderScene() {
         bar = new ProgressBar(0);
         BorderPane p = new BorderPane();
-        Label title = new Label("Y86-64 Assembly Virtual Machine Simulator");
+        Label title = new Label("Y86-64 Simulator");
         title.setFont(new Font(20));
         p.setTop(title);
         BorderPane.setAlignment(p.getTop(), Pos.CENTER);
